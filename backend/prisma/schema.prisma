@@ -1,0 +1,106 @@
+// MatchFusion — Prisma schema (progress build)
+//
+// This schema covers MatchFusion's OWN application data: accounts and the
+// community layer (posts, comments, reactions, polls). Match/team/player
+// information itself comes live from the external sports API and is not
+// duplicated here, per the architecture decided in PROGRESS.md.
+//
+// Not yet run against a real database in this progress build — no
+// DATABASE_URL is configured yet. Once Supabase (or any Postgres host) is
+// set up, run:
+//   npx prisma migrate dev --name init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String     @id @default(cuid())
+  name         String
+  email        String     @unique
+  passwordHash String
+  createdAt    DateTime   @default(now())
+
+  posts        Post[]
+  comments     Comment[]
+  reactions    Reaction[]
+  votes        Vote[]
+}
+
+model Post {
+  id        String     @id @default(cuid())
+  content   String
+  matchTag  String? // optional free-text reference to a match, e.g. "Barcelona vs Real Madrid"
+  createdAt DateTime   @default(now())
+
+  authorId  String
+  author    User       @relation(fields: [authorId], references: [id])
+
+  comments  Comment[]
+  reactions Reaction[]
+  poll      Poll?
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id])
+}
+
+model Reaction {
+  id        String   @id @default(cuid())
+  type      String   @default("like") // room to grow beyond a single "like" type later
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id])
+
+  @@unique([userId, postId, type])
+}
+
+model Poll {
+  id        String       @id @default(cuid())
+  question  String
+  createdAt DateTime     @default(now())
+
+  postId    String       @unique
+  post      Post         @relation(fields: [postId], references: [id])
+
+  options   PollOption[]
+}
+
+model PollOption {
+  id     String @id @default(cuid())
+  label  String
+
+  pollId String
+  poll   Poll   @relation(fields: [pollId], references: [id])
+
+  votes  Vote[]
+}
+
+model Vote {
+  id       String     @id @default(cuid())
+
+  userId   String
+  user     User       @relation(fields: [userId], references: [id])
+
+  optionId String
+  option   PollOption @relation(fields: [optionId], references: [id])
+
+  @@unique([userId, optionId])
+}

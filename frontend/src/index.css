@@ -1,0 +1,99 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-midnight-900 text-ink font-body antialiased;
+  background-image: radial-gradient(circle at 15% 0%, rgba(46, 155, 255, 0.10), transparent 40%),
+    radial-gradient(circle at 85% 20%, rgba(155, 124, 255, 0.10), transparent 40%);
+  background-attachment: fixed;
+}
+
+::selection {
+  background: rgba(46, 155, 255, 0.35);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #090d16;
+}
+::-webkit-scrollbar-thumb {
+  background: #212b45;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #333f5e;
+}
+
+:focus-visible {
+  outline: 2px solid #2e9bff;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@layer components {
+  /* Frosted card surface used throughout the app */
+  .glass {
+    @apply relative bg-midnight-800/60 border border-white/[0.06] backdrop-blur-xl rounded-xl2;
+  }
+
+  .glass-hover {
+    @apply transition duration-300 hover:border-white/[0.14] hover:-translate-y-0.5;
+  }
+
+  /* Text filled with the fusion gradient */
+  .text-gradient {
+    @apply bg-fusion-gradient bg-clip-text text-transparent;
+  }
+
+  /* Small uppercase eyebrow / chyron-style label, sports-broadcast vernacular */
+  .eyebrow {
+    @apply inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-muted;
+  }
+
+  /* Scoreboard-style tabular digits */
+  .scorefont {
+    @apply font-mono tabular-nums;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-fusion-gradient px-5 py-2.5 text-sm font-semibold text-midnight-950 shadow-glow transition hover:brightness-110 active:brightness-95;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.02] px-5 py-2.5 text-sm font-semibold text-ink transition hover:bg-white/[0.06] hover:border-white/20;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs font-medium text-ink-muted transition;
+  }
+
+  .chip-active {
+    @apply border-transparent bg-fusion-gradient text-midnight-950;
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-white/10 bg-midnight-800/70 px-4 py-3 text-sm text-ink placeholder:text-ink-faint outline-none transition focus:border-broadcast/60;
+  }
+
+  .live-dot {
+    @apply relative h-2 w-2 rounded-full bg-live animate-pulseDot;
+  }
+
+  .section-pad {
+    @apply mx-auto w-full max-w-7xl px-5 sm:px-8 lg:px-10;
+  }
+}
