@@ -1,101 +1,104 @@
 # MatchFusion
 
-**AI-Powered Sports Community & Match Analysis Platform**
+## AI-Powered Sports Community & Match Analysis Platform ⚽🏏
 
-Course: Software Development Project – I (CSE-3208) · Session: July–Dec 2026
-Team: MD. Mehedi Hassan · Tabassum Binte Tariq Rabsa · Intasar Mostafiz · Pritoma Paul Lopa
+**MatchFusion** is a web-based platform designed for football and cricket fans. It brings match information, live scores, upcoming and completed matches, team and player statistics, AI-based match insights, and fan community interaction together in one platform. 🌟
 
-> ⚠️ **Progress build.** This submission implements roughly half of the full
-> proposal — a complete, polished frontend UI on mock data, plus a working
-> backend scaffold (real auth, a few live API routes). It is **not** the
-> final deliverable. See [`PROGRESS.md`](./PROGRESS.md) for exactly what's
-> done, what's stubbed, and what's left before the final submission.
+## Problem Statement
 
----
+Sports fans often need to use multiple platforms to access match updates, statistics, analysis, and discussions. MatchFusion aims to bring these features together in a single, simple, and interactive platform. 📊
 
-## What is MatchFusion?
+## Target Users
 
-A web platform for football and cricket fans that brings together live
-scores, upcoming/completed matches, team & player stats, AI-based match
-insights, and a fan community (posts, comments, reactions, polls) — in one
-place, at zero cost.
+MatchFusion is designed for:
 
-## Tech stack
+* Football and cricket fans who want to follow matches.
+* Sports enthusiasts interested in team and player statistics.
+* Data-oriented users who want to explore charts and match insights.
+* Community users who want to share opinions, comment, react, and participate in polls.
 
-| Layer | Technology |
-|---|---|
-| Frontend | React + Vite, Tailwind CSS, React Router, Axios, Recharts, Lucide icons |
-| Backend | Node.js + Express.js |
-| Database | PostgreSQL (Supabase free tier) + Prisma ORM |
-| Auth | JWT + bcrypt |
-| AI | Gemini API (planned) |
-| Sports data | TheSportsDB / football & cricket APIs (planned) |
-| Tooling | VS Code, Git/GitHub, Postman |
-| Hosting (free) | Render (frontend static site + backend web service), Supabase (Postgres) |
+## Main Features
 
-## Project structure
+### Match Center 🏟️
 
-```
-MatchFusion/
-├── frontend/     React + Vite + Tailwind UI (see frontend/README below)
-├── backend/      Node/Express API + Prisma schema
-├── PROGRESS.md   What's implemented vs pending, mapped to the proposal
-└── README.md     This file
-```
+* Live matches
+* Upcoming matches
+* Completed matches
+* Match scores and events
+* Detailed match information
 
-## Running it locally
+### Football & Cricket ⚽🏏
 
-### 1. Frontend
+Users can switch between football and cricket and explore their respective matches, teams, and players.
 
-```bash
-cd frontend
-npm install
-cp .env.example .env      # defaults are fine for local dev
-npm run dev                # http://localhost:5173
-```
+### Team & Player Information 👥
 
-The frontend currently renders entirely from mock data in
-`frontend/src/data/` so it runs and looks complete even with the backend
-turned off.
+* Team details
+* Player profiles
+* Recent performance
+* Available statistics
 
-### 2. Backend
+### Statistics & Analytics 📈
 
-```bash
-cd backend
-npm install
-cp .env.example .env      # fill in DATABASE_URL / JWT_SECRET when ready
-npm run dev                 # http://localhost:5000
-```
+* Team performance statistics
+* Player statistics
+* Comparative analysis
+* Visual charts and graphs
 
-The backend runs standalone (no database required yet) — `/api/matches`,
-`/api/teams`, and `/api/players` serve placeholder data, and `/api/auth`
-performs **real** bcrypt hashing + JWT signing against an in-memory user
-list. See `PROGRESS.md` for what changes once Postgres is connected.
+### AI Match Insights 🤖
 
-Quick check once it's running:
+MatchFusion provides AI-based insights and probability-based match predictions using available match and performance information.
 
-```bash
-curl http://localhost:5000/api/health
-curl http://localhost:5000/api/matches?status=live
-```
+### Sports Community 💬
 
-## Deployment (planned, free tier)
+Users can:
 
-- Frontend → Render Static Site
-- Backend → Render Web Service (connected to this GitHub repo)
-- Database → Supabase PostgreSQL (not Render's free Postgres — it expires
-  after 30 days)
-- AI → Gemini API free tier
-- Sports data → TheSportsDB free tier (pending endpoint verification)
+* Create posts
+* Comment on posts
+* React to posts
+* Participate in polls
+* Discuss matches with other fans
 
-This gives a public `https://matchfusion.onrender.com`-style link at ৳0.
-Not yet deployed in this progress build — see `PROGRESS.md`.
+### Search & Filtering 🔍
 
-## Design
+Users can search for and filter:
 
-Dark, gradient-accented UI (emerald → blue → violet) inspired by sports
-broadcast graphics — scoreboard-style monospace digits for scores, a
-pulsing live indicator, and a scrolling match ticker. Fully responsive,
-built with reusable components (`MatchCard`, `TeamCard`, `PlayerCard`,
-`AIPredictionCard`, `CommunityPost`, `PollCard`, etc.) under
-`frontend/src/components/`.
+* Matches
+* Teams
+* Players
+* Sports and match categories
+
+### User Authentication 🔐
+
+* Registration
+* Login
+* User accounts
+* Secure password handling
+
+## Initial Project Scope
+
+The initial version of MatchFusion focuses on:
+
+* Football and cricket
+* Live scores and match events
+* Upcoming and completed matches
+* Team and player information
+* Statistics and charts
+* AI-based insights
+* User authentication
+* Posts, comments, reactions, and polls
+
+## Future Scope 🚀
+
+The platform can be extended in the future with:
+
+* Additional sports
+* Personalized recommendations
+* Notifications
+* More advanced AI analysis
+* Official or authorized live-streaming integration
+* Mobile applications
+
+## Project Goal 🎯
+
+The goal of MatchFusion is to create a single platform where sports fans can **follow matches, explore statistics, understand performance through AI-based insights, and interact with a sports community**.
