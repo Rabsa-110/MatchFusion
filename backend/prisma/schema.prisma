@@ -1,13 +1,7 @@
-// MatchFusion — Prisma schema (progress build)
+// MatchFusion — Prisma schema
 //
-// This schema covers MatchFusion's OWN application data: accounts and the
-// community layer (posts, comments, reactions, polls). Match/team/player
-// information itself comes live from the external sports API and is not
-// duplicated here, per the architecture decided in PROGRESS.md.
-//
-// Not yet run against a real database in this progress build — no
-// DATABASE_URL is configured yet. Once Supabase (or any Postgres host) is
-// set up, run:
+// Application data: accounts, community layer, and sports-data snapshots.
+// Run after setting DATABASE_URL:
 //   npx prisma migrate dev --name init
 
 generator client {
@@ -19,6 +13,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ── Users ────────────────────────────────────────────────────────────────────
 model User {
   id           String     @id @default(cuid())
   name         String
@@ -32,18 +27,20 @@ model User {
   votes        Vote[]
 }
 
+// ── Community ────────────────────────────────────────────────────────────────
 model Post {
-  id        String     @id @default(cuid())
-  content   String
-  matchTag  String? // optional free-text reference to a match, e.g. "Barcelona vs Real Madrid"
-  createdAt DateTime   @default(now())
+  id          String     @id @default(cuid())
+  content     String
+  matchTag    String?
+  matchStatus String?    @default("ALL")
+  createdAt   DateTime   @default(now())
 
-  authorId  String
-  author    User       @relation(fields: [authorId], references: [id])
+  authorId    String
+  author      User       @relation(fields: [authorId], references: [id])
 
-  comments  Comment[]
-  reactions Reaction[]
-  poll      Poll?
+  comments    Comment[]
+  reactions   Reaction[]
+  poll        Poll?
 }
 
 model Comment {
@@ -60,7 +57,7 @@ model Comment {
 
 model Reaction {
   id        String   @id @default(cuid())
-  type      String   @default("like") // room to grow beyond a single "like" type later
+  type      String   @default("like")
   createdAt DateTime @default(now())
 
   userId    String
@@ -73,14 +70,16 @@ model Reaction {
 }
 
 model Poll {
-  id        String       @id @default(cuid())
-  question  String
-  createdAt DateTime     @default(now())
+  id          String       @id @default(cuid())
+  question    String
+  matchStatus String?      @default("LIVE")
+  matchId     String?
+  createdAt   DateTime     @default(now())
 
-  postId    String       @unique
-  post      Post         @relation(fields: [postId], references: [id])
+  postId      String?      @unique
+  post        Post?        @relation(fields: [postId], references: [id])
 
-  options   PollOption[]
+  options     PollOption[]
 }
 
 model PollOption {
@@ -103,4 +102,39 @@ model Vote {
   option   PollOption @relation(fields: [optionId], references: [id])
 
   @@unique([userId, optionId])
+}
+
+// ── Sports Data Snapshots ────────────────────────────────────────────────────
+// Stores the latest normalized snapshot of each match fetched from external
+// providers. Prevents redundant API calls; the refresh service upserts here.
+model Match {
+  id           String   @id @default(cuid())
+  provider     String   // "football" | "cricket"
+  externalId   String   // ID from the provider
+  sport        String   // "football" | "cricket"
+  competition  String
+  status       String   // "LIVE" | "UPCOMING" | "COMPLETED" | "POSTPONED" | "CANCELLED"
+  kickoffAt    DateTime?
+
+  homeTeam     String
+  homeShort    String
+  homeLogo     String?
+  awayTeam     String
+  awayShort    String
+  awayLogo     String?
+
+  scoreHome    String?
+  scoreAway    String?
+  statusDetail String?  // minute, overs, result text etc.
+
+  // JSON blobs for sport-specific extras (events, stats, cricket innings)
+  eventsJson   String?  @default("[]")
+  statsJson    String?
+  extraJson    String?  // cricket: overs/wickets/innings; football: venue etc.
+
+  lastFetchedAt DateTime @default(now())
+
+  @@unique([provider, externalId])
+  @@index([sport, status])
+  @@index([kickoffAt])
 }

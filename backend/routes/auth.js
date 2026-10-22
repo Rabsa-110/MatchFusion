@@ -1,47 +1,101 @@
+// backend/routes/auth.js
+// Real auth with dual-mode persistence (Prisma PostgreSQL or Local Persistent DB).
+
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { findUserByEmail, createUser } from "../lib/db.js";
 
 const router = Router();
-
-// TEMPORARY in-memory user store.
-// The password hashing (bcrypt) and token signing (JWT) below are the real
-// mechanisms the proposal calls for — what's temporary is *where the users
-// are stored*. Swap this array for Prisma + Postgres once DATABASE_URL is
-// configured (see prisma/schema.prisma and PROGRESS.md). Data here resets
-// every time the server restarts.
-const users = [];
-
 const JWT_SECRET = process.env.JWT_SECRET || "dev_secret_change_me";
 
+/** POST /api/auth/register */
 router.post("/register", async (req, res) => {
   const { name, email, password } = req.body;
 
   if (!name || !email || !password) {
     return res.status(400).json({ success: false, message: "Name, email and password are required" });
   }
-  if (users.some((u) => u.email === email)) {
-    return res.status(409).json({ success: false, message: "An account with that email already exists" });
+  if (password.length < 6) {
+    return res.status(400).json({ success: false, message: "Password must be at least 6 characters" });
   }
 
-  const passwordHash = await bcrypt.hash(password, 10);
-  const user = { id: `u_${Date.now()}`, name, email, passwordHash };
-  users.push(user);
+  try {
+    const existing = await findUserByEmail(email);
+    if (existing) {
+      return res.status(409).json({ success: false, message: "An account with that email already exists" });
+    }
 
-  const token = jwt.sign({ sub: user.id, name: user.name, email: user.email }, JWT_SECRET, { expiresIn: "7d" });
-  res.status(201).json({ success: true, token, user: { id: user.id, name: user.name, email: user.email } });
+    const passwordHash = await bcrypt.hash(password, 10);
+    const user = await createUser({ name, email, passwordHash });
+
+    const token = jwt.sign(
+      { sub: user.id, name: user.name, email: user.email },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+    return res.status(201).json({
+      success: true,
+      token,
+      user: { id: user.id, name: user.name, email: user.email },
+    });
+  } catch (err) {
+    console.error("[auth] register error:", err.message);
+    return res.status(500).json({
+      success: false,
+      message: "Registration failed: " + err.message,
+    });
+  }
 });
 
+/** POST /api/auth/login */
 router.post("/login", async (req, res) => {
   const { email, password } = req.body;
-  const user = users.find((u) => u.email === email);
 
-  if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
-    return res.status(401).json({ success: false, message: "Invalid email or password" });
+  if (!email || !password) {
+    return res.status(400).json({ success: false, message: "Email and password are required" });
   }
 
-  const token = jwt.sign({ sub: user.id, name: user.name, email: user.email }, JWT_SECRET, { expiresIn: "7d" });
-  res.json({ success: true, token, user: { id: user.id, name: user.name, email: user.email } });
+  try {
+    const user = await findUserByEmail(email);
+    if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+      return res.status(401).json({ success: false, message: "Invalid email or password" });
+    }
+
+    const token = jwt.sign(
+      { sub: user.id, name: user.name, email: user.email },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+    return res.json({
+      success: true,
+      token,
+      user: { id: user.id, name: user.name, email: user.email },
+    });
+  } catch (err) {
+    console.error("[auth] login error:", err.message);
+    return res.status(500).json({
+      success: false,
+      message: "Login failed: " + err.message,
+    });
+  }
+});
+
+/** GET /api/auth/me — returns current user from JWT */
+router.get("/me", (req, res) => {
+  const header = req.headers.authorization || "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+  if (!token) return res.status(401).json({ success: false, message: "Not authenticated" });
+
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    return res.json({
+      success: true,
+      user: { id: payload.sub, name: payload.name, email: payload.email },
+    });
+  } catch {
+    return res.status(401).json({ success: false, message: "Invalid or expired token" });
+  }
 });
 
 export default router;

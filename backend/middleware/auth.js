@@ -17,3 +17,21 @@ export function requireAuth(req, res, next) {
     return res.status(401).json({ success: false, message: "Invalid or expired token" });
   }
 }
+
+// Optionally attaches user if token is present and valid
+export function optionalAuth(req, res, next) {
+  const header = req.headers.authorization || "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+
+  if (!token) {
+    req.user = null;
+    return next();
+  }
+
+  try {
+    req.user = jwt.verify(token, process.env.JWT_SECRET || "dev_secret_change_me");
+  } catch {
+    req.user = null;
+  }
+  next();
+}

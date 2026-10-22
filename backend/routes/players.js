@@ -1,18 +1,27 @@
 import { Router } from "express";
-import { players, getPlayerById } from "../data/players.js";
+import * as sportsService from "../services/sportsService.js";
 
 const router = Router();
 
-router.get("/", (req, res) => {
-  const { sport } = req.query;
-  const result = sport ? players.filter((p) => p.sport === sport) : players;
-  res.json({ success: true, count: result.length, players: result });
+router.get("/", async (req, res) => {
+  const { sport = "all" } = req.query;
+  try {
+    const list = await sportsService.getPlayers(sport);
+    res.json({ success: true, count: list.length, players: list });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message, players: [] });
+  }
 });
 
-router.get("/:id", (req, res) => {
-  const player = getPlayerById(req.params.id);
-  if (!player) return res.status(404).json({ success: false, message: "Player not found" });
-  res.json({ success: true, player });
+router.get("/:id", async (req, res) => {
+  try {
+    const list = await sportsService.getPlayers("all");
+    const player = list.find((p) => p.id === req.params.id || p.name.toLowerCase() === req.params.id.toLowerCase());
+    if (!player) return res.status(404).json({ success: false, message: "Player not found" });
+    res.json({ success: true, player });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 export default router;

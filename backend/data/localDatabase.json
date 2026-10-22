@@ -1,0 +1,66 @@
+{
+  "users": [],
+  "posts": [],
+  "reactions": [],
+  "comments": [],
+  "polls": [
+    {
+      "id": "poll-live-1",
+      "question": "Who will win the ongoing Pakistan vs Sri Lanka match?",
+      "matchStatus": "LIVE",
+      "options": [
+        {
+          "id": "opt-1",
+          "label": "Pakistan",
+          "votes": 45
+        },
+        {
+          "id": "opt-2",
+          "label": "Sri Lanka",
+          "votes": 52
+        }
+      ]
+    },
+    {
+      "id": "poll-up-1",
+      "question": "Upcoming: Will Real Madrid or Barcelona take all 3 points tonight?",
+      "matchStatus": "UPCOMING",
+      "options": [
+        {
+          "id": "opt-3",
+          "label": "Real Madrid Win",
+          "votes": 38
+        },
+        {
+          "id": "opt-4",
+          "label": "Draw",
+          "votes": 14
+        },
+        {
+          "id": "opt-5",
+          "label": "Barcelona Win",
+          "votes": 41
+        }
+      ]
+    },
+    {
+      "id": "poll-comp-1",
+      "question": "Completed: South Africa vs Australia Test: Outstanding bowler of the match?",
+      "matchStatus": "COMPLETED",
+      "options": [
+        {
+          "id": "opt-6",
+          "label": "Mitchell Starc",
+          "votes": 62
+        },
+        {
+          "id": "opt-7",
+          "label": "Kagiso Rabada",
+          "votes": 48
+        }
+      ]
+    }
+  ],
+  "votes": [],
+  "matches": []
+}

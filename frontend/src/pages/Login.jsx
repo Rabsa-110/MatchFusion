@@ -7,16 +7,23 @@ export default function Login() {
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.email || !form.password) {
       setError("Please fill in both fields.");
       return;
     }
-    const name = form.email.split("@")[0];
-    login(name.charAt(0).toUpperCase() + name.slice(1), form.email);
-    navigate("/");
+    setError("");
+    setLoading(true);
+    const result = await login(form.email, form.password);
+    setLoading(false);
+    if (result.success) {
+      navigate("/");
+    } else {
+      setError(result.error || "Login failed.");
+    }
   };
 
   return (
@@ -37,8 +44,7 @@ export default function Login() {
       <div className="mx-auto w-full max-w-sm">
         <h1 className="font-display text-2xl font-semibold text-ink">Log in</h1>
         <p className="mt-1.5 text-sm text-ink-muted">
-          This is a UI demo login for the progress build — see PROGRESS.md for the real
-          JWT/bcrypt auth plan.
+          Sign in to your MatchFusion account.
         </p>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">
@@ -46,27 +52,36 @@ export default function Login() {
             <label className="mb-1.5 block text-xs font-medium text-ink-muted">Email</label>
             <input
               type="email"
+              id="login-email"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
               className="input"
               placeholder="you@example.com"
+              autoComplete="email"
             />
           </div>
           <div>
             <label className="mb-1.5 block text-xs font-medium text-ink-muted">Password</label>
             <input
               type="password"
+              id="login-password"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               className="input"
               placeholder="••••••••"
+              autoComplete="current-password"
             />
           </div>
 
-          {error && <p className="text-xs text-alert">{error}</p>}
+          {error && <p className="rounded-lg bg-alert/10 px-3 py-2 text-xs text-alert">{error}</p>}
 
-          <button type="submit" className="btn-primary w-full justify-center">
-            Log in
+          <button
+            type="submit"
+            id="login-submit"
+            disabled={loading}
+            className="btn-primary w-full justify-center disabled:opacity-60"
+          >
+            {loading ? "Signing in…" : "Log in"}
           </button>
         </form>
 

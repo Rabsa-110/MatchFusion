@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import Ticker from "../components/common/Ticker.jsx";
@@ -9,27 +10,88 @@ import AIPredictionCard from "../components/ai/AIPredictionCard.jsx";
 import TeamCard from "../components/teams/TeamCard.jsx";
 import CommunityPost from "../components/community/CommunityPost.jsx";
 import PollCard from "../components/community/PollCard.jsx";
-import { matches, quickStats } from "../data/mockMatches.js";
-import { teams } from "../data/mockTeams.js";
-import { posts, polls } from "../data/mockCommunity.js";
+import DataFreshnessBadge from "../components/common/DataFreshnessBadge.jsx";
+import { useMatches } from "../hooks/useMatches.js";
+import api from "../api/axios.js";
 
 export default function Home() {
-  const liveMatches = matches.filter((m) => m.status === "live");
-  const upcoming = matches.filter((m) => m.status === "upcoming").slice(0, 3);
-  const completed = matches.filter((m) => m.status === "completed").slice(0, 3);
-  const featured = liveMatches[0];
-  const trendingTeams = [teams[0], teams[2], teams[5], teams[6]];
+  const { matches, loading, error, cacheInfo } = useMatches({
+    sport: "all",
+    autoRefresh: true,
+    refreshIntervalMs: 60000,
+  });
 
-  const tickerItems = matches
-    .filter((m) => m.status !== "upcoming" || Math.random() > -1)
-    .slice(0, 6)
-    .map((m) =>
-      m.status === "live"
-        ? `🔴 LIVE ${m.home.short} ${m.scoreHome ?? ""} - ${m.scoreAway ?? ""} ${m.away.short}`
-        : m.status === "completed"
-        ? `FT ${m.home.short} ${m.scoreHome} - ${m.scoreAway} ${m.away.short}`
-        : `${m.date} ${m.home.short} vs ${m.away.short}`
-    );
+  const [posts, setPosts] = useState([]);
+  const [postsLoading, setPostsLoading] = useState(true);
+  const [teams, setTeams] = useState([]);
+  const [polls, setPolls] = useState([]);
+
+  useEffect(() => {
+    // 1. Load real posts from backend
+    api.get("/posts", { params: { limit: 4 } })
+      .then(({ data }) => {
+        if (data.success) setPosts(data.posts || []);
+      })
+      .catch(() => {})
+      .finally(() => setPostsLoading(false));
+
+    // 2. Load real trending teams from backend
+    api.get("/teams", { params: { sport: "all" } })
+      .then(({ data }) => {
+        if (data.success && data.teams) setTeams(data.teams.slice(0, 4));
+      })
+      .catch(() => {});
+
+    // 3. Load real polls from backend
+    api.get("/polls")
+      .then(({ data }) => {
+        if (data.success && data.polls) setPolls(data.polls);
+      })
+      .catch(() => {});
+  }, []);
+
+  const liveMatches = matches.filter((m) => (m.status || "").toUpperCase() === "LIVE");
+  const upcomingMatches = matches.filter((m) => (m.status || "").toUpperCase() === "UPCOMING");
+  const completedMatches = matches.filter((m) => {
+    const s = (m.status || "").toUpperCase();
+    return s === "COMPLETED" || s === "CANCELLED" || s === "POSTPONED" || s === "FT";
+  });
+  const featured = liveMatches[0] || matches[0] || null;
+
+  // Real match ticker items
+  const tickerItems =
+    matches.length > 0
+      ? matches.slice(0, 8).map((m) => {
+          const home = m.home?.short || m.home?.name || "";
+          const away = m.away?.short || m.away?.name || "";
+          const s = (m.status || "").toUpperCase();
+          if (s === "LIVE")
+            return `🔴 LIVE ${home} ${m.scoreHome ?? ""} - ${m.scoreAway ?? ""} ${away}`;
+          if (s === "COMPLETED" || s === "FT")
+            return `FT ${home} ${m.scoreHome ?? ""} - ${m.scoreAway ?? ""} ${away}`;
+          return `⏰ ${m.date || ""} ${home} vs ${away}`;
+        })
+      : ["Connecting to live sports data…"];
+
+  // Quick stats computed directly from active real match data
+  const quickStats = [
+    {
+      label: "Today's Matches",
+      value: loading ? "—" : matches.length,
+    },
+    {
+      label: "Live Right Now",
+      value: loading ? "—" : liveMatches.length,
+    },
+    {
+      label: "Upcoming Fixtures",
+      value: loading ? "—" : upcomingMatches.length,
+    },
+    {
+      label: "Completed Results",
+      value: loading ? "—" : completedMatches.length,
+    },
+  ];
 
   return (
     <>
@@ -47,7 +109,7 @@ export default function Home() {
               <span className="text-gradient">One fusion.</span>
             </h1>
             <p className="mt-6 max-w-md text-base leading-relaxed text-ink-muted">
-              Follow live matches, explore statistics, discover AI-powered insights, and connect
+              Follow live matches, explore accurate statistics, discover AI-powered insights, and connect
               with fellow fans — all inside one platform built for football and cricket.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
@@ -61,53 +123,84 @@ export default function Home() {
           </div>
 
           <div className="animate-rise" style={{ animationDelay: "120ms" }}>
-            <LiveHeroCard match={featured} />
+            {loading ? (
+              <div className="glass flex h-48 items-center justify-center">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-white/10 border-t-broadcast" />
+                <span className="ml-3 text-sm text-ink-muted">Loading live sports data…</span>
+              </div>
+            ) : featured ? (
+              <LiveHeroCard match={featured} />
+            ) : (
+              <div className="glass p-8 text-center">
+                <p className="text-sm text-ink-muted">No live matches right now.</p>
+                <Link to="/matches" className="mt-3 inline-flex text-xs text-broadcast hover:underline">
+                  Browse all matches →
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </section>
 
       <div className="section-pad space-y-20 pb-24">
-        {/* Live matches */}
+        {/* Backend connection warning if any */}
+        {error && (
+          <div className="glass border-amber-500/20 p-4">
+            <p className="text-xs text-amber-400">
+              ⚠ Cannot reach backend server at http://localhost:5000. Start backend to see real live data.
+            </p>
+          </div>
+        )}
+
+        {/* Live Matches Section */}
+        {liveMatches.length > 0 && (
+          <section>
+            <SectionHeading
+              eyebrow="Happening right now"
+              title="Live matches"
+              action={
+                <Link to="/matches" className="flex items-center gap-1 text-sm font-medium text-live hover:text-live/80">
+                  View all live ({liveMatches.length}) <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              }
+            />
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {liveMatches.slice(0, 3).map((m, idx) => (
+                <MatchCard key={`${m.provider || m.sport}-${m.externalId || m.id || idx}`} match={m} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Recent Results */}
         <section>
           <SectionHeading
-            eyebrow="Happening now"
-            title="🔴 Live matches"
+            eyebrow="Just finished"
+            title="Recent results"
             action={
-              <Link to="/matches" className="flex items-center gap-1 text-sm font-medium text-broadcast hover:text-broadcast/80">
-                All matches <ArrowRight className="h-3.5 w-3.5" />
+              <Link to="/matches" className="flex items-center gap-1 text-sm font-medium text-intel hover:text-intel/80">
+                View all ({completedMatches.length}) <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             }
           />
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {liveMatches.map((m) => (
-              <MatchCard key={m.id} match={m} />
-            ))}
-          </div>
-        </section>
-
-        {/* Upcoming */}
-        <section>
-          <SectionHeading eyebrow="Coming up" title="Upcoming matches" />
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {upcoming.map((m) => (
-              <MatchCard key={m.id} match={m} />
-            ))}
-          </div>
-        </section>
-
-        {/* Recent results */}
-        <section>
-          <SectionHeading eyebrow="Just finished" title="Recent results" />
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {completed.map((m) => (
-              <MatchCard key={m.id} match={m} />
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex justify-center py-10">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-white/10 border-t-intel" />
+            </div>
+          ) : completedMatches.length > 0 ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {completedMatches.slice(0, 3).map((m, idx) => (
+                <MatchCard key={`${m.provider || m.sport}-${m.externalId || m.id || idx}`} match={m} />
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-ink-muted">No recent results available yet.</p>
+          )}
         </section>
 
         {/* Quick stats */}
         <section>
-          <SectionHeading eyebrow="Platform pulse" title="Quick statistics" />
+          <SectionHeading eyebrow="Platform pulse" title="Match statistics" />
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {quickStats.map((s, i) => (
               <StatCard key={i} label={s.label} value={s.value} accent={["live", "broadcast", "intel", "alert"][i % 4]} />
@@ -116,7 +209,7 @@ export default function Home() {
         </section>
 
         {/* AI Spotlight */}
-        {featured && (
+        {featured && featured.status !== "COMPLETED" && (
           <section className="grid gap-8 lg:grid-cols-2 lg:items-center">
             <div>
               <p className="eyebrow mb-3">🤖 AI Spotlight</p>
@@ -124,9 +217,8 @@ export default function Home() {
                 See the story behind the score
               </h2>
               <p className="mt-3 max-w-md text-sm leading-relaxed text-ink-muted">
-                MatchFusion's backend calculates win probabilities from team form, home
-                advantage, and performance data — then uses AI to explain the numbers in plain
-                language. It's a probability-based read, never a guaranteed outcome.
+                MatchFusion's backend calculates win probabilities from match data, then uses
+                Gemini AI to explain the numbers in plain language.
               </p>
               <Link
                 to={`/matches/${featured.id}`}
@@ -135,19 +227,40 @@ export default function Home() {
                 View full analysis <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
-            <AIPredictionCard match={featured} />
+            {featured.ai ? (
+              <AIPredictionCard match={featured} />
+            ) : (
+              <div className="glass p-6 text-center">
+                <p className="text-sm text-ink-muted">
+                  AI insights load on the match detail page.{" "}
+                  <Link to={`/matches/${featured.id}`} className="text-intel hover:underline">
+                    View match analysis →
+                  </Link>
+                </p>
+              </div>
+            )}
           </section>
         )}
 
         {/* Trending teams */}
-        <section>
-          <SectionHeading eyebrow="Fan favorites" title="Trending teams" />
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {trendingTeams.map((t) => (
-              <TeamCard key={t.id} team={t} />
-            ))}
-          </div>
-        </section>
+        {teams.length > 0 && (
+          <section>
+            <SectionHeading
+              eyebrow="Fan favorites"
+              title="Featured teams"
+              action={
+                <Link to="/teams" className="flex items-center gap-1 text-sm font-medium text-broadcast hover:text-broadcast/80">
+                  Explore all teams <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              }
+            />
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {teams.map((t, idx) => (
+                <TeamCard key={`${t.id || t.name}-${idx}`} team={t} />
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Community highlights */}
         <section>
@@ -160,12 +273,27 @@ export default function Home() {
               </Link>
             }
           />
-          <div className="grid gap-4 lg:grid-cols-3">
-            {posts.slice(0, 2).map((p) => (
-              <CommunityPost key={p.id} post={p} />
-            ))}
-            <PollCard poll={polls[0]} />
-          </div>
+          {postsLoading ? (
+            <div className="flex justify-center py-10">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-white/10 border-t-broadcast" />
+            </div>
+          ) : (
+            <div className="grid gap-4 lg:grid-cols-3">
+              {posts.length > 0 ? (
+                posts.slice(0, 2).map((p) => (
+                  <CommunityPost key={p.id} post={p} />
+                ))
+              ) : (
+                <div className="glass p-6 text-center lg:col-span-2">
+                  <p className="text-sm text-ink-muted">No fan discussions yet.</p>
+                  <Link to="/community" className="mt-2 inline-block text-xs text-broadcast hover:underline">
+                    Start the first discussion →
+                  </Link>
+                </div>
+              )}
+              {polls.length > 0 && <PollCard key={polls[0].id || "featured-poll"} poll={polls[0]} />}
+            </div>
+          )}
         </section>
 
         {/* CTA */}
