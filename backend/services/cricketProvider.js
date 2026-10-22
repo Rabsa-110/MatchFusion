@@ -11,7 +11,7 @@ import fetch from "node-fetch";
 const BASE_URL = "https://api.cricapi.com/v1";
 const getApiKey = () => process.env.CRICKETDATA_API_KEY;
 
-/** Low-level fetch with timeout */
+/** Low-level fetch with timeout & enhanced error handling */
 async function apiFetch(endpoint, params = {}) {
   const apiKey = getApiKey();
   if (!apiKey) {
@@ -23,7 +23,7 @@ async function apiFetch(endpoint, params = {}) {
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 12000);
+  const timeout = setTimeout(() => controller.abort(), 15000); // Expanded timeout to 15s for high stability
 
   try {
     const res = await fetch(url.toString(), { signal: controller.signal });
@@ -38,6 +38,13 @@ async function apiFetch(endpoint, params = {}) {
     }
 
     return body.data || [];
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      console.error(`[cricketProvider] Request timed out for endpoint: ${endpoint}`);
+    } else {
+      console.error(`[cricketProvider] Fetch error for ${endpoint}:`, err.message);
+    }
+    throw err;
   } finally {
     clearTimeout(timeout);
   }
