@@ -1,4 +1,4 @@
-// frontend/src/hooks/useMatches.js
+﻿// frontend/src/hooks/useMatches.js
 // Custom hook for fetching match data from the backend API.
 // Includes loading, error, and data-freshness states.
 

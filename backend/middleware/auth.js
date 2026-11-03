@@ -1,4 +1,4 @@
-import jwt from "jsonwebtoken";
+﻿import jwt from "jsonwebtoken";
 
 // Verifies the "Authorization: Bearer <token>" header and attaches the
 // decoded payload to req.user. Used to protect routes like POST /api/posts.

@@ -1,4 +1,4 @@
-// backend/routes/polls.js
+﻿// backend/routes/polls.js
 // Match polls backed by persistent database.
 
 import { Router } from "express";
@@ -25,7 +25,7 @@ router.get("/", optionalAuth, async (req, res) => {
 });
 
 /**
- * POST /api/polls/:id/vote — Vote for an option
+ * POST /api/polls/:id/vote â€” Vote for an option
  * Body: { optionId }
  */
 router.post("/:id/vote", requireAuth, async (req, res) => {

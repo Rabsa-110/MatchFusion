@@ -1,4 +1,4 @@
-// backend/routes/posts.js
+﻿// backend/routes/posts.js
 // Community posts and discussions backed by persistent database.
 
 import { Router } from "express";
@@ -45,7 +45,7 @@ router.get("/", async (req, res) => {
 });
 
 /**
- * POST /api/posts — protected by JWT
+ * POST /api/posts â€” protected by JWT
  */
 router.post("/", requireAuth, async (req, res) => {
   const { content, matchTag, matchStatus = "ALL" } = req.body;
@@ -77,7 +77,7 @@ router.post("/", requireAuth, async (req, res) => {
 });
 
 /**
- * POST /api/posts/:id/react — toggle a like/reaction
+ * POST /api/posts/:id/react â€” toggle a like/reaction
  */
 router.post("/:id/react", requireAuth, async (req, res) => {
   const { id } = req.params;
@@ -92,7 +92,7 @@ router.post("/:id/react", requireAuth, async (req, res) => {
 });
 
 /**
- * GET /api/posts/:id/comments — list comments for a post
+ * GET /api/posts/:id/comments â€” list comments for a post
  */
 router.get("/:id/comments", async (req, res) => {
   const { id } = req.params;
@@ -105,7 +105,7 @@ router.get("/:id/comments", async (req, res) => {
 });
 
 /**
- * POST /api/posts/:id/comments — add comment to post
+ * POST /api/posts/:id/comments â€” add comment to post
  */
 router.post("/:id/comments", requireAuth, async (req, res) => {
   const { id } = req.params;

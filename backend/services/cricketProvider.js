@@ -81,6 +81,30 @@ function parseScoreStats(scoreStr) {
   return null;
 }
 
+
+/**
+ * Map a cricket match type + status string to internal status.
+ * Exported so tests can verify mapping logic independently.
+ * @param {string} matchType   - e.g. "t20", "odi", "test"
+ * @param {string} statusStr   - raw status string from provider
+ * @param {boolean|null} matchStarted - from currentMatches endpoint (null if not available)
+ * @param {boolean|null} matchEnded   - from currentMatches endpoint (null if not available)
+ * @returns {"LIVE"|"COMPLETED"|"UPCOMING"|"POSTPONED"}
+ */
+export function mapStatus(matchType, statusStr, matchStarted, matchEnded) {
+  if (matchEnded === true) return "COMPLETED";
+  if (matchStarted === true && matchEnded === false) return "LIVE";
+  const s = (statusStr || "").toLowerCase();
+  if (s.includes("won") || s.includes("tied") || s.includes("drawn") ||
+      s.includes("no result") || s.includes("abandoned") || s.includes("result"))
+    return "COMPLETED";
+  if (s.includes("live") || s.includes("in progress") ||
+      s.includes("need") || s.includes("opt to"))
+    return "LIVE";
+  if (s.includes("postponed") || s.includes("cancelled") || s.includes("canceled"))
+    return "POSTPONED";
+  return "UPCOMING";
+}
 /**
  * Normalize cricScore endpoint items
  */

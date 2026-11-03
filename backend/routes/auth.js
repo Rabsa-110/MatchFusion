@@ -1,4 +1,4 @@
-// backend/routes/auth.js
+﻿// backend/routes/auth.js
 // Real auth with dual-mode persistence (Prisma PostgreSQL or Local Persistent DB).
 
 import { Router } from "express";
@@ -81,7 +81,7 @@ router.post("/login", async (req, res) => {
   }
 });
 
-/** GET /api/auth/me — returns current user from JWT */
+/** GET /api/auth/me â€” returns current user from JWT */
 router.get("/me", (req, res) => {
   const header = req.headers.authorization || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : null;

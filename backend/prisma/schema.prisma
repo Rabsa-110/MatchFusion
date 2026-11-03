@@ -1,8 +1,9 @@
 // MatchFusion — Prisma schema
 //
 // Application data: accounts, community layer, and sports-data snapshots.
-// Run after setting DATABASE_URL:
-//   npx prisma migrate dev --name init
+// Run migrations with:
+//   npx prisma migrate dev --name <migration-name>
+// NEVER run prisma migrate reset in production.
 
 generator client {
   provider = "prisma-client-js"
@@ -27,6 +28,7 @@ model User {
   comments     Comment[]
   reactions    Reaction[]
   votes        Vote[]
+  polls        Poll[]
 }
 
 // ── Community ────────────────────────────────────────────────────────────────
@@ -54,7 +56,7 @@ model Comment {
   author    User     @relation(fields: [authorId], references: [id])
 
   postId    String
-  post      Post     @relation(fields: [postId], references: [id])
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
 }
 
 model Reaction {
@@ -66,7 +68,7 @@ model Reaction {
   user      User     @relation(fields: [userId], references: [id])
 
   postId    String
-  post      Post     @relation(fields: [postId], references: [id])
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@unique([userId, postId, type])
 }
@@ -74,12 +76,17 @@ model Reaction {
 model Poll {
   id          String       @id @default(cuid())
   question    String
-  matchStatus String?      @default("LIVE")
-  matchId     String?
+  matchStatus String?      @default("ALL")
+  matchId     String?      // References Match.externalId (not a FK, for flexibility)
   createdAt   DateTime     @default(now())
 
+  // Optional post link
   postId      String?      @unique
   post        Post?        @relation(fields: [postId], references: [id])
+
+  // Creator (nullable for backward compat with existing polls)
+  creatorId   String?
+  creator     User?        @relation(fields: [creatorId], references: [id])
 
   options     PollOption[]
 }
@@ -89,7 +96,7 @@ model PollOption {
   label  String
 
   pollId String
-  poll   Poll   @relation(fields: [pollId], references: [id])
+  poll   Poll   @relation(fields: [pollId], references: [id], onDelete: Cascade)
 
   votes  Vote[]
 }
@@ -101,8 +108,13 @@ model Vote {
   user     User       @relation(fields: [userId], references: [id])
 
   optionId String
-  option   PollOption @relation(fields: [optionId], references: [id])
+  option   PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
 
+  pollId   String     // Denormalized for the unique per-poll constraint
+
+  // One vote per user per poll (enforced at DB level)
+  @@unique([userId, pollId])
+  // Also prevent voting the same option twice (belt-and-suspenders)
   @@unique([userId, optionId])
 }
 
@@ -136,7 +148,78 @@ model Match {
 
   lastFetchedAt DateTime @default(now())
 
+  aiInsights   AIInsight[]
+
   @@unique([provider, externalId])
   @@index([sport, status])
   @@index([kickoffAt])
+}
+
+// ── AI Insights ──────────────────────────────────────────────────────────────
+// Persists AI-generated match insights to avoid repeated Gemini API calls.
+model AIInsight {
+  id           String   @id @default(cuid())
+  matchId      String   // Match.id (internal cuid)
+  match        Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  probHome     Float?
+  probDraw     Float?
+  probAway     Float?
+  confidence   String   // "low" | "medium" | "high"
+  method       String   // "result" | "live_score" | "neutral_baseline"
+  explanation  String
+  disclaimer   String
+  factorsJson  String?  // JSON array of factor strings
+  dataSnapshot String?  // JSON snapshot of input data used
+
+  modelName    String   @default("gemini-2.5-flash")
+  generatedAt  DateTime @default(now())
+  expiresAt    DateTime // When to regenerate
+
+  @@index([matchId])
+  @@index([expiresAt])
+}
+
+// ── Team Directory ───────────────────────────────────────────────────────────
+// Persists team information derived from match data and provider APIs.
+model Team {
+  id           String   @id @default(cuid())
+  externalId   String?  // Provider-specific ID
+  provider     String?  // "football" | "cricket"
+  name         String
+  shortName    String?
+  country      String?
+  sport        String   // "football" | "cricket"
+  logo         String?
+  competition  String?  // Primary competition
+  lastUpdated  DateTime @default(now())
+
+  players      Player[]
+
+  @@unique([sport, name])
+  @@index([sport])
+}
+
+// ── Player Directory ─────────────────────────────────────────────────────────
+// Persists player information derived from match events and provider APIs.
+// Only stores actual provider-supplied data — never fabricated statistics.
+model Player {
+  id           String   @id @default(cuid())
+  externalId   String?  // Provider-specific ID
+  provider     String?  // "football" | "cricket"
+  name         String
+  shortName    String?
+  country      String?
+  sport        String   // "football" | "cricket"
+  position     String?  // football: Forward/Midfielder/Defender/Goalkeeper; cricket: Batsman/Bowler/etc.
+  role         String?  // More detailed role description
+  image        String?
+  statsJson    String?  // Available statistics as JSON
+  lastUpdated  DateTime @default(now())
+
+  teamId       String?
+  team         Team?    @relation(fields: [teamId], references: [id])
+
+  @@index([sport])
+  @@index([name])
 }

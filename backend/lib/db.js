@@ -24,6 +24,9 @@ function isPlaceholderUrl(url) {
   );
 }
 
+// Local JSON fallback is ONLY enabled in development when explicitly opted in via DB_FALLBACK_ENABLED=true.
+const FALLBACK_ENABLED = process.env.NODE_ENV !== "production" && process.env.DB_FALLBACK_ENABLED === "true";
+
 let prismaActive = !isPlaceholderUrl(process.env.DATABASE_URL);
 
 const INITIAL_SEED = {
@@ -64,13 +67,16 @@ function saveLocalDb(data) {
   }
 }
 
-// ── User Operations ──────────────────────────────────────────────────────────
+// â”€â”€ User Operations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function findUserByEmail(email) {
   if (prismaActive) {
     try {
       return await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
     } catch (e) {
+      if (!FALLBACK_ENABLED) {
+        throw new Error("Database unavailable: " + e.message);
+      }
       console.warn("[db] PostgreSQL unreachable, falling back to local store:", e.message);
       prismaActive = false;
     }
@@ -98,6 +104,9 @@ export async function createUser({ name, email, passwordHash }) {
         data: { name: name.trim(), email: email.toLowerCase().trim(), passwordHash },
       });
     } catch (e) {
+      if (!FALLBACK_ENABLED) {
+        throw new Error("Database unavailable: " + e.message);
+      }
       console.warn("[db] PostgreSQL create user failed, falling back to local store:", e.message);
       prismaActive = false;
     }
@@ -116,7 +125,7 @@ export async function createUser({ name, email, passwordHash }) {
   return newUser;
 }
 
-// ── Post Operations ──────────────────────────────────────────────────────────
+// â”€â”€ Post Operations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function getPosts({ limit = 30, offset = 0, matchStatus, matchTag } = {}) {
   if (prismaActive) {
@@ -341,7 +350,7 @@ export async function togglePostReaction({ userId, postId, type = "like" }) {
   return { liked, likes: post ? post.likes : 0 };
 }
 
-// ── Comment Operations ───────────────────────────────────────────────────────
+// â”€â”€ Comment Operations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function getComments(postId) {
   if (prismaActive) {
@@ -427,7 +436,7 @@ export async function createComment({ postId, authorId, authorName, content }) {
   };
 }
 
-// ── Poll Operations ──────────────────────────────────────────────────────────
+// â”€â”€ Poll Operations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function getPolls(matchStatus = null, currentUserId = null) {
   if (prismaActive) {
@@ -607,6 +616,7 @@ export async function votePoll({ pollId, optionId, userId }) {
         data: {
           userId,
           optionId,
+          pollId,  // denormalized for unique-per-poll DB constraint
         },
       });
 
@@ -636,7 +646,7 @@ export async function votePoll({ pollId, optionId, userId }) {
   return { success: true, message: "Vote registered" };
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function timeAgo(date) {
   const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);

@@ -1,7 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+﻿import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import api from "../api/axios.js";
 
-// Real auth context — calls the backend JWT/bcrypt API.
+// Real auth context â€” calls the backend JWT/bcrypt API.
 // Falls back gracefully when the backend is unreachable.
 const AuthContext = createContext(null);
 

@@ -1,8 +1,8 @@
-// backend/services/footballProvider.js
+﻿// backend/services/footballProvider.js
 //
 // Fetches football match data from API-Football (v3.football.api-sports.io).
 // Free plan: 100 requests/day. This module is called only through sportsService
-// which enforces caching — never called directly from routes.
+// which enforces caching â€” never called directly from routes.
 //
 // Docs: https://www.api-football.com/documentation-v3
 
@@ -122,13 +122,13 @@ export function normalizeFixture(f) {
   };
 }
 
-/** GET /fixtures?live=all — currently live matches */
+/** GET /fixtures?live=all â€” currently live matches */
 export async function fetchLiveFootball() {
   const raw = await apiFetch("/fixtures", { live: "all" });
   return raw.map(normalizeFixture);
 }
 
-/** GET /fixtures?date=YYYY-MM-DD — today's matches */
+/** GET /fixtures?date=YYYY-MM-DD â€” today's matches */
 export async function fetchTodayFootball() {
   const today = new Date().toISOString().slice(0, 10);
   const raw = await apiFetch("/fixtures", { date: today });
@@ -212,7 +212,7 @@ export async function fetchFixtureEvents(externalId) {
         : "sub",
       team: e.team?.name || "",
       player: e.player?.name || null,
-      text: `${e.detail || e.type || "Event"} — ${e.team?.name || ""}`,
+      text: `${e.detail || e.type || "Event"} â€” ${e.team?.name || ""}`,
     }));
   } catch {
     return [];
