@@ -29,11 +29,21 @@ export function AuthProvider({ children }) {
           setUser(null);
         }
       })
-      .catch(() => {
-        // Token invalid, expired, or backend rejected
-        localStorage.removeItem("matchfusion_token");
-        localStorage.removeItem("matchfusion_user");
-        setUser(null);
+      .catch((err) => {
+        // Only clear token if backend explicitly rejected it (401)
+        // Do NOT clear on network errors (connection refused, timeout) to preserve session
+        if (err?.response?.status === 401) {
+          localStorage.removeItem("matchfusion_token");
+          localStorage.removeItem("matchfusion_user");
+          setUser(null);
+        }
+        // On network error: keep user from localStorage so UI doesn't flash logged-out
+        else {
+          const stored = localStorage.getItem("matchfusion_user");
+          if (stored) {
+            try { setUser(JSON.parse(stored)); } catch { /* ignore */ }
+          }
+        }
       })
       .finally(() => {
         setLoading(false);

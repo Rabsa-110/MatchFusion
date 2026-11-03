@@ -147,7 +147,7 @@ export default function Home() {
         {error && (
           <div className="glass border-amber-500/20 p-4">
             <p className="text-xs text-amber-400">
-              ⚠ Cannot reach backend server at http://localhost:5000. Start backend to see real live data.
+              ⚠ Cannot reach the MatchFusion backend server. Check your internet connection or try again later.
             </p>
           </div>
         )}

@@ -426,25 +426,6 @@ export async function getMatchById(id) {
     }
   }
 
-  // Ensure stats is available for live and completed matches
-  if (!match.stats && (match.status === "LIVE" || match.status === "COMPLETED")) {
-    if (match.sport === "football") {
-      const hG = parseInt(match.scoreHome, 10) || 0;
-      const aG = parseInt(match.scoreAway, 10) || 0;
-      match.stats = {
-        possession: [50, 50],
-        shots: [Math.max(hG * 3 + 2, 5), Math.max(aG * 3 + 2, 4)],
-        shotsOnTarget: [Math.max(hG + 1, 2), Math.max(aG + 1, 2)],
-        corners: [Math.max(hG + 2, 3), Math.max(aG + 2, 3)],
-        fouls: [9, 11],
-      };
-    } else if (match.sport === "cricket") {
-      match.stats = {
-        runRate: 6.8,
-        requiredRunRate: null,
-        partnership: null,
-      };
-    }
   }
 
   return match;
@@ -651,30 +632,6 @@ export async function getPlayers(sport = "all") {
       }
     }
 
-    // 2. Derive key players from prominent match status
-    if (m.sport === "cricket" && m.statusDetail) {
-      // E.g. Status details mentioning key performers
-      const names = m.statusDetail.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+))\b/g) || [];
-      for (const name of names) {
-        if (["Match Ended", "Full Time", "Live In", "Stumps Day"].includes(name)) continue;
-        const key = `cricket-${name.toLowerCase().trim()}`;
-        if (!playerMap.has(key)) {
-          playerMap.set(key, {
-            id: `p-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
-            name,
-            team: m.home?.name || "Cricket Team",
-            sport: "cricket",
-            role: "Batsman",
-            position: "Batsman",
-            goals: 0,
-            assists: 0,
-            runs: 78,
-            wickets: 2,
-            matches: 3,
-          });
-        }
-      }
-    }
   }
 
   // Verified real players derived directly from provider match events & scorecards
