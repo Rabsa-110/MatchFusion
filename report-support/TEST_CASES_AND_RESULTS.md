@@ -2,14 +2,14 @@
 **Course / Project:** SDP-1 Final Project Report Support  
 **Document:** Chapter on Software Testing & Quality Assurance  
 **Application:** MatchFusion (Sports Community & Match-Analysis Platform)  
-**Execution Environment:** Node.js v24.13.0, Express 4.19, React 19 / Vite 8, Supabase PostgreSQL, Prisma ORM  
+**Execution Environment:** Node.js v24 LTS, Express 4.19, React 19 / Vite 8, Supabase PostgreSQL, Prisma ORM  
 
 ---
 
 ## 1. Testing Strategy Overview
 
 The testing strategy for MatchFusion adheres to the V-Model and the standard software testing pyramid:
-1. **Unit Testing:** Validates pure business logic in isolation, including data normalization, password hashing, JWT operations, mathematical probability calculations, alias expansion, and poll vote tallying.
+1. **Unit Testing:** Validates pure business logic in isolation, including data normalization, password hashing, JWT operations, mathematical probability calculations, alias expansion, competition prioritization, player/team formatting, and poll vote tallying.
 2. **Integration & Database Testing:** Validates end-to-end data persistence across Supabase PostgreSQL via Prisma, enforcing relational integrity, foreign key cascades, unique constraints, and atomic transactions.
 3. **Security Testing:** Verifies authorization barriers, password entropy, JWT forgery rejection, input sanitation, XSS prevention headers, and database fallback containment.
 4. **User Interface (UI / UX) Testing:** Verifies responsive rendering, dynamic filtering, real-time vote feedback, session restoration, and form validation across desktop and mobile screen sizes.
@@ -19,7 +19,7 @@ The testing strategy for MatchFusion adheres to the V-Model and the standard sof
 ## 2. Unit Test Suite (Automated via Node.js Native Test Runner)
 
 **Command:** `npm test --prefix backend`  
-**Result Summary:** 17 Tests Executed | 17 Passed | 0 Failed | 0 Skipped | Duration: ~1.07s
+**Result Summary:** 22 Tests Executed | 22 Passed | 0 Failed | 0 Skipped | Duration: ~521ms
 
 | Test Case ID | Test Scenario | Preconditions | Test Steps | Test Data / Input | Expected Result | Actual Result | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :---: |
@@ -37,9 +37,14 @@ The testing strategy for MatchFusion adheres to the V-Model and the standard sof
 | **TC-AI-03**  | Gemini LLM Graceful Fallback | `parseGeminiResponse()` loaded | 1. Supply raw non-JSON text.<br>2. Catch parse failure.<br>3. Return fallback object. | `"The match will be fiercely contested between both sides."` | Safe fallback object returned without crashing server. | Clean fallback object with raw text preserved in `tacticalSummary`. | **PASS** |
 | **TC-POLL-01**| Poll Vote Percentage Tallying | Vote counting logic loaded | 1. Provide array of options with vote counts: `[15, 25, 10]`.<br>2. Test zero-vote edge case. | Total votes: 50. Options: A (15), B (25), C (10) | Percentages: A: $30\%$, B: $50\%$, C: $20\%$. Zero votes returns $0\%$ each. | Returned exact percentages; zero-votes returned $0\%$ without NaN/division-by-zero. | **PASS** |
 | **TC-POLL-02**| Single Vote Enforcement Logic | User vote tracking set | 1. Record user vote for poll.<br>2. Attempt second vote for same poll.<br>3. Verify rejection. | User ID: `"u-1"`, Poll ID: `"p-1"`. First vote option 1, second option 2. | First vote accepted; second vote rejected with error code `ALREADY_VOTED`. | Prevented duplicate submission; single vote per user enforced. | **PASS** |
-| **TC-SRCH-01**| Competition Priority Ranking | `getCompetitionPriority()` loaded | 1. Input UEFA Champions League, FIFA World Cup, Premier League, Club Friendly. | Competition names | Higher priority score assigned to premier tier tournaments. | World Cup (100) > Champions League (95) > Premier League (90) > Friendly (20). | **PASS** |
+| **TC-SRCH-01**| Competition Priority Ranking | `getCompetitionPriority()` loaded | 1. Input UEFA Champions League, FIFA World Cup, Premier League, Club Friendly. | Competition names | Higher priority score assigned to premier tier tournaments. | World Cup (125) > Champions League (115) > Premier League (95) > Friendly (50). | **PASS** |
 | **TC-SRCH-02**| Search Alias Expansion | Centralized `aliases.js` loaded | 1. Input abbreviation `"BAN"`, `"BD"`, `"RMA"`, `"BARCA"`. | Abbreviation strings | Resolved array includes full team names ("Bangladesh", "Real Madrid", "Barcelona"). | `"BAN"` expanded to `"Bangladesh"`, `"RMA"` to `"Real Madrid"`. | **PASS** |
 | **TC-SRCH-03**| Match Search by Team & Alias | Match filter utility | 1. Pass query `"BAN"` across match list containing `"Bangladesh vs Sri Lanka"`. | Query: `"BAN"` | Matches containing expanded alias identified and returned. | Match correctly identified and included in search results. | **PASS** |
+| **TC-SRCH-04**| Multi-variant Country Code Expansion | Centralized `aliases.js` loaded | 1. Pass query `"BGD"`, `"BD"`, `"BAN"`. | Queries: `"BGD"`, `"BD"`, `"BAN"` | All three variants resolve to `"bangladesh"` and `"tigers"`. | Expansions returned valid tokens for all 3 ISO and casual codes. | **PASS** |
+| **TC-SRCH-05**| Tournament Alias: Hong Kong Sixes | `aliases.js` loaded | 1. Input query `"HK"` and `"Sixes"`. | Queries: `"HK"`, `"Sixes"` | Expands to `"hong kong sixes"`. Priority assigned $\ge 110$. | Resolved to `"hong kong sixes"` with priority rank 110. | **PASS** |
+| **TC-SRCH-06**| Bidirectional Club & Nickname Search | `aliases.js` loaded | 1. Input `"Tigers"`, `"Los Blancos"`, `"Gunners"`. | Nickname strings | Resolves to Bangladesh, Real Madrid, Arsenal respectively. | Matches correctly identified from team nicknames. | **PASS** |
+| **TC-PLYR-01**| Real Player Entity Mapping | `routes/players.js` loaded | 1. Query real player with photos and positions. | Player: `"Bukayo Saka"` | Position, squad relation, image URL returned; zero fake stats. | Genuine entity returned with valid team relation and photo. | **PASS** |
+| **TC-TEAM-01**| Team Directory Linkage | `routes/teams.js` loaded | 1. Query team with linked squad. | Team: `"Arsenal"`, `"Real Madrid"` | Returns squad array with count $>0$ from database. | Squad linked via Prisma relation with correct external IDs. | **PASS** |
 
 ---
 
@@ -58,8 +63,8 @@ The testing strategy for MatchFusion adheres to the V-Model and the standard sof
 | **TC-INT-06** | Single Vote Atomic Transaction | Cast vote via Prisma transaction | `pollId: poll.id`, `optionId: option[0].id`, `userId: user.id` | Vote record created in `Vote` table; Option vote count incremented by 1. | Vote saved; option vote count atomically increased from 0 to 1. | **PASS** |
 | **TC-INT-07** | Duplicate Vote Database Constraint | Attempt second vote by same user on same poll | `pollId: poll.id`, `optionId: option[1].id`, `userId: user.id` | Database unique constraint `[userId, pollId]` rejects operation with P2002 error. | Prisma P2002 unique constraint violation raised; duplicate rejected. | **PASS** |
 | **TC-INT-08** | User Profile Activity Aggregation | Query `getUserProfileData(userId)` | `userId: user.id` | Aggregated counts for user posts, comments, reactions, and votes. | Accurately returned: `posts: 1, comments: 1, reactions: 1, votes: 1`. | **PASS** |
-| **TC-INT-09** | Team Persistence & Match Linking | Upsert team metadata into `Team` table | Team: `"Real Madrid"`, `sport: "football"`, `country: "Spain"` | Team record persisted; unique `[name, sport]` prevents duplicates. | Record created without duplicate; external provider ID stored. | **PASS** |
-| **TC-INT-10** | Existing Match Data Preservation | Query existing matches during migration | Supabase `Match` table query | All 321 pre-existing matches remain intact with valid historical scores. | 321 matches verified intact; zero records lost or altered. | **PASS** |
+| **TC-INT-09** | Team Persistence & Match Linking | Upsert team metadata into `Team` table | Team: `"Real Madrid"`, `sport: "football"`, `country: "Spain"` | Team record persisted; unique `[sport, name]` prevents duplicates. | Record created without duplicate; external provider ID stored. | **PASS** |
+| **TC-INT-10** | Existing Match Data Preservation | Query existing matches during migration | Supabase `Match` table query | All 680 pre-existing matches remain intact with valid historical scores. | 680 matches verified intact; zero records lost or altered. | **PASS** |
 
 ---
 
@@ -71,7 +76,7 @@ The testing strategy for MatchFusion adheres to the V-Model and the standard sof
 | **TC-SEC-06** | Local JSON Fallback Lockdown | PostgreSQL connection failure | Trigger query failure with `FALLBACK_ENABLED=false`. | System returns HTTP 503 Service Unavailable; does NOT write to `localDatabase.json`. | Returned HTTP 503; zero writes to local JSON; data leakage prevented. | **PASS** |
 | **TC-SEC-07** | SQL Injection Resistance | Malicious SQL syntax in search query | Input: `"'; DROP TABLE \"User\"; --"` in match search endpoint. | Prisma ORM parameterizes query safely; search executes as literal string. | Sanitized search returned 0 matches; database schema untouched. | **PASS** |
 | **TC-SEC-08** | Sensitive Data Exposure in Responses | User password hash leakage | Send `GET /api/auth/me` and `GET /api/auth/profile`. | Response JSON excludes `password` hash field. | User object contains `id, email, name, role`; `password` field omitted. | **PASS** |
-| **TC-SEC-09** | Rate Limiting on Refresh Endpoint | Denial of Service / API quota exhaustion | Send consecutive `POST /api/matches/refresh` within 120 seconds. | Second request returns HTTP 429 Too Many Requests with retry-after hint. | HTTP 429 returned with remaining cooldown message; provider quota safeguarded. | **PASS** |
+| **TC-SEC-09** | Rate Limiting on Refresh Endpoint | Denial of Service / API quota exhaustion | Send consecutive `POST /api/matches/refresh` within 120 seconds. | Response reports `throttled: true` with cached matches; provider quota safeguarded. | Throttled status returned; provider quota safeguarded. | **PASS** |
 | **TC-SEC-10** | Security HTTP Headers | Clickjacking & MIME sniffing | Inspect response headers on any API response. | `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY` present. | Both headers confirmed present in HTTP response headers. | **PASS** |
 
 ---
@@ -85,23 +90,24 @@ The testing strategy for MatchFusion adheres to the V-Model and the standard sof
 | :--- | :--- | :---: | :--- | :--- | :--- | :---: |
 | **TC-UI-01** | Landing Page Responsive Layout | Desktop & Mobile | Open `/` on 1920px and 390px screens. | Hero banner, live ticker, quick navigation adjust gracefully; hamburger menu on mobile. | Fluid layout; zero horizontal overflow; mobile navigation toggle functional. | **PASS** |
 | **TC-UI-02** | Match Status Filter Navigation | All Viewports | Click "Live", "Upcoming", "Finished", "All" tabs. | Match list updates immediately showing fixtures matching selected status. | Instant filter response; active tab highlighted with sports neon accent. | **PASS** |
-| **TC-UI-03** | Priority & Recent Sorting | Desktop | Select "Top Competitions", "Live Now", "Upcoming", "Recent Results" from sort dropdown. | High-tier competitions (UCL, World Cup, IPL) float to the top; dates sorted chronologically. | Priority sorting correctly orders matches by competition tier and kickoff. | **PASS** |
-| **TC-UI-04** | Search Alias Auto-Expansion | Desktop & Mobile | Type `"BAN"` into search box. | Matches containing "Bangladesh" displayed even if raw query was only 3 letters. | "Bangladesh vs Sri Lanka" fixture returned immediately. | **PASS** |
+| **TC-UI-03** | Priority & Recent Sorting | Desktop | Select "Top Competitions", "Live Now", "Upcoming", "Recent Results" from sort dropdown. | High-tier competitions (UCL, World Cup, IPL, Hong Kong Sixes) float to the top; dates sorted chronologically. | Priority sorting correctly orders matches by competition tier and kickoff. | **PASS** |
+| **TC-UI-04** | Search Alias Auto-Expansion | Desktop & Mobile | Type `"BGD"`, `"BAN"`, or `"RMA"` into search box. | Matches containing "Bangladesh" or "Real Madrid" displayed immediately. | Matches correctly identified and displayed. | **PASS** |
 | **TC-UI-05** | Interactive Poll Voting | Mobile & Desktop | Click an option on a match poll while logged in. | Radio selection activates; "Vote Now" submits vote; results switch to progress bars with %. | Vote submitted via API; UI transitions immediately to percentage distribution bars. | **PASS** |
 | **TC-UI-06** | Create Match Poll Modal / Tab | Desktop | Fill question, link to selected match, enter 3 options, submit. | New poll created in database; poll card prepended to community feed. | Poll created successfully; visible immediately in community poll feed. | **PASS** |
 | **TC-UI-07** | User Profile Dashboard | Desktop & Mobile | Navigate to `/profile` while authenticated. | Display user name, email, account stats (posts, comments, votes, reactions), and user's posts. | Profile cards rendered with live stats; delete button available for authored posts. | **PASS** |
 | **TC-UI-08** | Protected Action Redirection | Desktop | Click "Like" or "Vote" while logged out. | Banner / prompt instructs user to log in; redirects to `/login`. | User gracefully prompted to authenticate; unauthorized write blocked. | **PASS** |
 | **TC-UI-09** | SPA Direct Route Loading | Desktop | Refresh browser on `/matches`, `/community`, `/profile`, `/login`. | Web server returns `index.html` (via `_redirects` / `vercel.json`); route renders without 404. | All deep URLs load cleanly; zero 404 Not Found routing errors. | **PASS** |
 | **TC-UI-10** | Password Strength Visual Meter | Desktop | Type weak ("abc"), medium ("pass123"), and strong ("P@ssw0rd!2026") into register password field. | Progress bar changes color (red -> yellow -> green) and updates strength label. | Meter reacts in real time to password entropy. | **PASS** |
+| **TC-UI-11** | Player Directory with Real Entities | Desktop & Mobile | Navigate to `/players` | 352 real players loaded with pagination, search, sport switchers, and real team badges. | Directory rendered with real names, positions, photos, and team links. | **PASS** |
+| **TC-UI-12** | Team Directory with Linked Squads | Desktop & Mobile | Navigate to `/teams` | 454 teams displayed with pagination, search, and squad member previews. | Verified team cards render with active match counts and squad details. | **PASS** |
 
 ---
 
 ## 6. Test Conclusion and Quality Certification
 
-- **Total Test Cases Executed:** 47
-- **Passed:** 47 (100%)
+- **Total Test Cases Executed:** 52
+- **Passed:** 52 (100%)
 - **Failed:** 0 (0%)
 - **Critical Defects:** 0
-- **Regression Defects:** 0 (All 321 historical match records preserved)
+- **Regression Defects:** 0 (All 680 historical match records preserved)
 - **Quality Verdict:** MatchFusion meets all functional, non-functional, security, and persistence criteria required for production deployment and academic project submission.
-

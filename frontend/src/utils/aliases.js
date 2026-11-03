@@ -2,9 +2,11 @@
 // Centralized sports team & competition alias dictionary for frontend search.
 
 export const ALIASES = {
-  ban: ["bangladesh", "tigers"],
-  bd: ["bangladesh", "tigers"],
-  bangladesh: ["bd", "ban", "tigers"],
+  // Cricket International
+  ban: ["bangladesh", "tigers", "bgd"],
+  bd: ["bangladesh", "tigers", "bgd"],
+  bgd: ["bangladesh", "tigers", "bd", "ban"],
+  bangladesh: ["bd", "ban", "bgd", "tigers"],
   ind: ["india", "bharat"],
   india: ["ind", "bharat"],
   aus: ["australia", "aussies"],
@@ -26,8 +28,12 @@ export const ALIASES = {
   wi: ["west indies", "windies"],
   windies: ["west indies", "wi"],
   "west indies": ["wi", "windies"],
+  hk: ["hong kong", "sixes", "hong kong sixes"],
+  "hong kong": ["hk", "sixes", "hong kong sixes"],
+  sixes: ["hong kong sixes", "hk sixes", "hong kong"],
+  "hong kong sixes": ["sixes", "hk", "hong kong"],
 
-  // Football
+  // Football Clubs
   rma: ["real madrid", "madrid"],
   "real madrid": ["rma", "madrid"],
   bar: ["barcelona", "barca", "fc barcelona"],
@@ -45,36 +51,52 @@ export const ALIASES = {
   liverpool: ["liv", "reds"],
   che: ["chelsea", "blues"],
   chelsea: ["che", "blues"],
-  tot: ["tottenham", "spurs"],
-  spurs: ["tottenham"],
   bay: ["bayern munich", "bayern"],
   bayern: ["bayern munich", "bay"],
   "bayern munich": ["bay", "bayern"],
   bvb: ["borussia dortmund", "dortmund"],
-  dortmund: ["borussia dortmund", "bvb"],
   psg: ["paris saint germain", "paris"],
-  ucl: ["champions league"],
-  pl: ["premier league", "epl"],
-  epl: ["premier league"],
+  "paris saint germain": ["psg", "paris"],
+  "paris saint-germain": ["psg", "paris"],
+  juv: ["juventus", "juve"],
+  juventus: ["juv", "juve"],
+  mil: ["ac milan", "milan"],
+  "ac milan": ["mil", "milan"],
+  int: ["inter milan", "inter"],
+  "inter milan": ["int", "inter"],
+  atm: ["atletico madrid", "atleti"],
+
+  // Competitions
+  ucl: ["champions league", "uefa champions league"],
+  uel: ["europa league", "uefa europa league"],
+  pl: ["premier league", "english premier league", "epl"],
+  epl: ["premier league", "english premier league"],
   ipl: ["indian premier league"],
   bbl: ["big bash league"],
   psl: ["pakistan super league"],
   bpl: ["bangladesh premier league"],
 };
 
-export function expandSearch(query) {
-  if (!query || typeof query !== "string") return [];
-  const q = query.trim().toLowerCase();
-  if (!q) return [];
-  const terms = new Set([q]);
-  if (ALIASES[q]) {
-    ALIASES[q].forEach((a) => terms.add(a));
+/**
+ * Returns expanded search terms for client-side search filtering.
+ * @param {string} raw
+ * @returns {string[]}
+ */
+export function expandSearch(raw = "") {
+  const query = raw.trim().toLowerCase();
+  if (!query) return [];
+
+  const terms = new Set([query]);
+  if (ALIASES[query]) {
+    ALIASES[query].forEach((a) => terms.add(a.toLowerCase()));
   }
-  for (const [key, list] of Object.entries(ALIASES)) {
-    if (q === key || q.includes(key)) {
-      list.forEach((item) => terms.add(item));
+
+  for (const [key, aliases] of Object.entries(ALIASES)) {
+    if (query.includes(key) || key.includes(query)) {
+      aliases.forEach((a) => terms.add(a.toLowerCase()));
+      terms.add(key.toLowerCase());
     }
   }
+
   return Array.from(terms);
 }
-

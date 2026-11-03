@@ -3,25 +3,30 @@
 
 export const TEAM_ALIASES = {
   // Cricket International
-  ban: ["bangladesh", "tigers"],
-  bd: ["bangladesh", "tigers"],
-  bangladesh: ["bd", "ban", "tigers"],
+  ban: ["bangladesh", "tigers", "bgd"],
+  bd: ["bangladesh", "tigers", "bgd"],
+  bgd: ["bangladesh", "tigers", "bd", "ban"],
+  bangladesh: ["bd", "ban", "bgd", "tigers"],
+  tigers: ["bangladesh", "bd", "ban"],
   ind: ["india", "bharat", "men in blue"],
-  india: ["ind", "bharat"],
+  india: ["ind", "bharat", "men in blue"],
   aus: ["australia", "aussies"],
   australia: ["aus", "aussies"],
+  aussies: ["australia", "aus"],
   eng: ["england", "three lions"],
-  england: ["eng"],
+  england: ["eng", "three lions"],
   pak: ["pakistan", "shaheens", "green shirts"],
-  pakistan: ["pak"],
+  pakistan: ["pak", "shaheens", "green shirts"],
   sl: ["sri lanka", "lions"],
   sri: ["sri lanka"],
-  "sri lanka": ["sl", "sri"],
+  "sri lanka": ["sl", "sri", "lions"],
   sa: ["south africa", "proteas"],
   rsa: ["south africa", "proteas"],
   "south africa": ["sa", "rsa", "proteas"],
+  proteas: ["south africa", "sa", "rsa"],
   nz: ["new zealand", "black caps", "kiwis"],
-  "new zealand": ["nz", "black caps"],
+  "new zealand": ["nz", "black caps", "kiwis"],
+  blackcaps: ["new zealand", "nz"],
   afg: ["afghanistan"],
   afghanistan: ["afg"],
   wi: ["west indies", "windies"],
@@ -33,25 +38,34 @@ export const TEAM_ALIASES = {
   ireland: ["ire"],
   ned: ["netherlands"],
   netherlands: ["ned", "holland"],
+  hk: ["hong kong", "sixes", "hong kong sixes"],
+  "hong kong": ["hk", "sixes", "hong kong sixes"],
+  sixes: ["hong kong sixes", "hk sixes", "hong kong"],
+  "hong kong sixes": ["sixes", "hk", "hong kong"],
 
   // Football Clubs
   rma: ["real madrid", "los blancos", "madrid"],
-  "real madrid": ["rma", "madrid"],
+  "real madrid": ["rma", "madrid", "los blancos"],
+  "los blancos": ["real madrid", "rma"],
   bar: ["barcelona", "barca", "blaugrana", "fc barcelona"],
-  barca: ["barcelona", "fc barcelona"],
-  barcelona: ["bar", "barca", "blaugrana"],
+  barca: ["barcelona", "fc barcelona", "blaugrana"],
+  barcelona: ["bar", "barca", "blaugrana", "fc barcelona"],
+  blaugrana: ["barcelona", "barca"],
   mci: ["manchester city", "man city", "city", "citizens"],
   "man city": ["manchester city", "mci"],
   "manchester city": ["mci", "man city", "city"],
   mun: ["manchester united", "man utd", "united", "red devils"],
   "man utd": ["manchester united", "mun"],
-  "manchester united": ["mun", "man utd", "united"],
+  "manchester united": ["mun", "man utd", "united", "red devils"],
+  "red devils": ["manchester united", "mun"],
   ars: ["arsenal", "gunners"],
   arsenal: ["ars", "gunners"],
+  gunners: ["arsenal", "ars"],
   liv: ["liverpool", "reds"],
   liverpool: ["liv", "reds"],
   che: ["chelsea", "blues"],
   chelsea: ["che", "blues"],
+  blues: ["chelsea", "che"],
   tot: ["tottenham", "spurs", "tottenham hotspur"],
   spurs: ["tottenham", "tottenham hotspur"],
   tottenham: ["tot", "spurs"],
@@ -62,13 +76,15 @@ export const TEAM_ALIASES = {
   dortmund: ["borussia dortmund", "bvb"],
   "borussia dortmund": ["bvb", "dortmund"],
   psg: ["paris saint germain", "paris"],
+  "paris saint germain": ["psg", "paris"],
   "paris saint-germain": ["psg", "paris"],
   juv: ["juventus", "juve"],
   juventus: ["juv", "juve"],
+  juve: ["juventus", "juv"],
   mil: ["ac milan", "milan", "rossoneri"],
-  "ac milan": ["mil", "milan"],
+  "ac milan": ["mil", "milan", "rossoneri"],
   int: ["inter milan", "inter", "nerazzurri"],
-  "inter milan": ["int", "inter"],
+  "inter milan": ["int", "inter", "nerazzurri"],
   atm: ["atletico madrid", "atleti"],
   "atletico madrid": ["atm", "atleti"],
 
@@ -87,6 +103,7 @@ export const TEAM_ALIASES = {
 
 /**
  * Normalizes query string and expands it into an array of search tokens / aliases.
+ * Supports bidirectional lookup (e.g. "BGD" -> "bangladesh", "tigers" -> "bangladesh").
  * @param {string} rawQuery
  * @returns {string[]}
  */
@@ -104,9 +121,15 @@ export function getExpandedSearchTerms(rawQuery) {
     }
   }
 
-  // Also check if any key in dictionary is contained in query
+  // Bidirectional search: check both keys and alias values
   for (const [key, aliases] of Object.entries(TEAM_ALIASES)) {
-    if (clean.includes(key)) {
+    if (
+      clean === key ||
+      clean.includes(key) ||
+      key.includes(clean) ||
+      aliases.some((a) => a === clean || clean.includes(a))
+    ) {
+      terms.add(key.toLowerCase());
       aliases.forEach((a) => terms.add(a.toLowerCase()));
     }
   }
@@ -152,18 +175,14 @@ export function matchMatchesSearch(match, query) {
 /**
  * Returns a priority score for competition ordering.
  * Higher score = higher priority in listings.
- * 100+: Major international tournaments
- * 80-99: Top domestic leagues & world cups
- * 60-79: Continental cups & franchise leagues
- * 40-59: Domestic cups & secondary tournaments
- * 20-39: Regional & state domestic
  */
 export function getCompetitionPriority(competitionName = "", sport = "") {
   const c = competitionName.toLowerCase();
 
   // Tier 1: Top International Football & Cricket
-  if (c.includes("world cup") || c.includes("champions trophy") || c.includes("t20 world cup")) return 120;
-  if (c.includes("champions league") || c.includes("copa america") || c.includes("euro 20")) return 110;
+  if (c.includes("world cup") || c.includes("champions trophy") || c.includes("t20 world cup")) return 125;
+  if (c.includes("champions league") || c.includes("copa america") || c.includes("euro 20")) return 115;
+  if (c.includes("hong kong sixes") || c.includes("hk sixes") || c.includes("sixes")) return 110;
   if (c.includes("test series") || c.includes("odi series") || c.includes("t20i series") || c.includes("tour of")) return 105;
 
   // Tier 2: Top Professional Leagues
@@ -181,4 +200,3 @@ export function getCompetitionPriority(competitionName = "", sport = "") {
   // Default priority
   return sport === "football" ? 60 : 55;
 }
-

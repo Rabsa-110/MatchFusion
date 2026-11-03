@@ -426,8 +426,6 @@ export async function getMatchById(id) {
     }
   }
 
-  }
-
   return match;
 }
 
