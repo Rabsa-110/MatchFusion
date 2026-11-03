@@ -44,6 +44,17 @@ body {
   border-radius: 4px;
 }
 
+/* Ensure all select and option elements maintain high-contrast dark theme */
+select {
+  background-color: #090d16 !important;
+  color: #f4f7fc !important;
+}
+
+select option {
+  background-color: #090d16 !important;
+  color: #f4f7fc !important;
+}
+
 @layer components {
   /* Frosted card surface used throughout the app */
   .glass {

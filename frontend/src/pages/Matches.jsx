@@ -185,10 +185,10 @@ export default function Matches() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="rounded-lg border border-white/10 bg-bg-card px-2.5 py-1 text-xs text-ink focus:border-broadcast focus:outline-none"
+              className="rounded-lg border border-white/10 bg-midnight-900 px-3 py-1.5 text-xs font-medium text-ink shadow-sm transition focus:border-broadcast focus:outline-none cursor-pointer"
             >
               {sortOptions.map((opt) => (
-                <option key={opt.id} value={opt.id} className="bg-bg-elevated text-ink">
+                <option key={opt.id} value={opt.id} className="bg-midnight-900 text-ink py-1">
                   {opt.label}
                 </option>
               ))}

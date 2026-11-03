@@ -1,12 +1,14 @@
 import { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
-import { ShieldCheck, Flame } from "lucide-react";
+import { ShieldCheck, Flame, Eye, EyeOff } from "lucide-react";
 
 export default function Register() {
   const { register } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ name: "", email: "", password: "", confirm: "" });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -108,16 +110,27 @@ export default function Register() {
                 </span>
               )}
             </div>
-            <input
-              type="password"
-              id="register-password"
-              required
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              className="input"
-              placeholder="At least 6 characters"
-              autoComplete="new-password"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                id="register-password"
+                required
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                className="input pr-10"
+                placeholder="At least 6 characters"
+                autoComplete="new-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-faint transition hover:text-ink focus:outline-none"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                title={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
             {form.password && (
               <div className="mt-1.5 flex h-1 w-full gap-1 overflow-hidden rounded bg-white/10">
                 <div
@@ -140,16 +153,27 @@ export default function Register() {
           </div>
           <div>
             <label className="mb-1.5 block text-xs font-medium text-ink-muted">Confirm password</label>
-            <input
-              type="password"
-              id="register-confirm"
-              required
-              value={form.confirm}
-              onChange={(e) => setForm({ ...form, confirm: e.target.value })}
-              className="input"
-              placeholder="Re-enter your password"
-              autoComplete="new-password"
-            />
+            <div className="relative">
+              <input
+                type={showConfirm ? "text" : "password"}
+                id="register-confirm"
+                required
+                value={form.confirm}
+                onChange={(e) => setForm({ ...form, confirm: e.target.value })}
+                className="input pr-10"
+                placeholder="Re-enter your password"
+                autoComplete="new-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirm((prev) => !prev)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-faint transition hover:text-ink focus:outline-none"
+                aria-label={showConfirm ? "Hide confirm password" : "Show confirm password"}
+                title={showConfirm ? "Hide confirm password" : "Show confirm password"}
+              >
+                {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
 
           {error && <p className="rounded-lg bg-alert/10 px-3 py-2 text-xs text-alert">{error}</p>}

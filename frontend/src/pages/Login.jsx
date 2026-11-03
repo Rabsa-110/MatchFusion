@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
-import { Flame, ShieldCheck } from "lucide-react";
+import { Flame, ShieldCheck, Eye, EyeOff } from "lucide-react";
 
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -86,16 +87,27 @@ export default function Login() {
           </div>
           <div>
             <label className="mb-1.5 block text-xs font-medium text-ink-muted">Password</label>
-            <input
-              type="password"
-              id="login-password"
-              required
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              className="input"
-              placeholder="••••••••"
-              autoComplete="current-password"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                id="login-password"
+                required
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                className="input pr-10"
+                placeholder="••••••••"
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-faint transition hover:text-ink focus:outline-none"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                title={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
 
           {error && <p className="rounded-lg bg-alert/10 px-3 py-2 text-xs text-alert">{error}</p>}
