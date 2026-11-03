@@ -54,3 +54,4 @@ test("Match search finds fixtures with expanded RMA and BARCA aliases", () => {
   assert.equal(matchMatchesSearch(elClasico, "BARCA"), true);
   assert.equal(matchMatchesSearch(elClasico, "Los Blancos"), true);
 });
+
