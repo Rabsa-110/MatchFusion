@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { RefreshCw, Radio, Calendar, CheckCircle2 } from "lucide-react";
+import { RefreshCw, Radio, Calendar, CheckCircle2, SlidersHorizontal, Check } from "lucide-react";
 import SportSwitcher from "../components/common/SportSwitcher.jsx";
 import StatusTabs from "../components/common/StatusTabs.jsx";
 import SearchBar from "../components/common/SearchBar.jsx";
@@ -7,6 +7,7 @@ import MatchCard from "../components/matches/MatchCard.jsx";
 import EmptyState from "../components/common/EmptyState.jsx";
 import DataFreshnessBadge from "../components/common/DataFreshnessBadge.jsx";
 import { useMatches } from "../hooks/useMatches.js";
+import { expandSearch } from "../utils/aliases.js";
 
 const statusOptions = [
   { id: "all", label: "All Categories" },
@@ -15,24 +16,44 @@ const statusOptions = [
   { id: "completed", label: "Completed Matches" },
 ];
 
+const sortOptions = [
+  { id: "priority", label: "Most Important / International" },
+  { id: "live", label: "Live Matches First" },
+  { id: "upcoming", label: "Upcoming Soonest" },
+  { id: "recent", label: "Latest Results" },
+];
+
 export default function Matches() {
   const [sport, setSport] = useState("all");
   const [status, setStatus] = useState("all");
   const [query, setQuery] = useState("");
+  const [sortBy, setSortBy] = useState("priority");
+  const [refreshNotice, setRefreshNotice] = useState(null);
 
-  const { matches, loading, error, cacheInfo, refetch } = useMatches({
+  const { matches, loading, refreshing, error, cacheInfo, refetch, forceRefresh } = useMatches({
     sport,
-    status: "all", // Fetch all matches so tabs can filter instantly with accurate category counts
+    status: "all",
+    sortBy,
     autoRefresh: true,
     refreshIntervalMs: 45000,
   });
+
+  const handleRefreshClick = async () => {
+    setRefreshNotice("Contacting sports data providers...");
+    const res = await forceRefresh(sport);
+    if (res?.success) {
+      setRefreshNotice("Scores refreshed from live providers!");
+    } else {
+      setRefreshNotice(res?.error || "Displaying latest cached match state.");
+    }
+    setTimeout(() => setRefreshNotice(null), 4000);
+  };
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return matches;
 
-    const isT20Search =
-      q === "t20" || q === "t-20" || q === "twenty20" || q === "twenty 20" || q === "t20i";
+    const terms = expandSearch(q);
 
     return matches.filter((m) => {
       const homeName = (m.home?.name || "").toLowerCase();
@@ -46,29 +67,9 @@ export default function Matches() {
       const sportName = (m.sport || "").toLowerCase();
       const matchType = (m.extra?.matchType || "").toLowerCase();
 
-      if (isT20Search) {
-        return (
-          matchType.includes("t20") ||
-          comp.includes("t20") ||
-          comp.includes("twenty20") ||
-          rawComp.includes("t20") ||
-          rawComp.includes("twenty20") ||
-          statusDetail.includes("t20")
-        );
-      }
+      const combinedText = `${homeName} ${awayName} ${homeShort} ${awayShort} ${comp} ${rawComp} ${statusDetail} ${venue} ${sportName} ${matchType}`;
 
-      return (
-        homeName.includes(q) ||
-        awayName.includes(q) ||
-        homeShort.includes(q) ||
-        awayShort.includes(q) ||
-        comp.includes(q) ||
-        rawComp.includes(q) ||
-        matchType.includes(q) ||
-        statusDetail.includes(q) ||
-        venue.includes(q) ||
-        sportName.includes(q)
-      );
+      return terms.some((term) => combinedText.includes(term));
     });
   }, [matches, query]);
 
@@ -96,7 +97,7 @@ export default function Matches() {
       list.push({
         id: "live",
         title: "Live Matches",
-        subtitle: "Matches currently in progress with live score tracking",
+        subtitle: "Matches currently in progress with real-time score updates",
         icon: Radio,
         color: "text-live",
         badgeBg: "bg-live/15 text-live border-live/30",
@@ -107,7 +108,7 @@ export default function Matches() {
       list.push({
         id: "upcoming",
         title: "Upcoming Matches",
-        subtitle: "Scheduled fixtures and pre-match previews",
+        subtitle: "Scheduled international & league fixtures",
         icon: Calendar,
         color: "text-intel",
         badgeBg: "bg-intel/15 text-intel border-intel/30",
@@ -118,7 +119,7 @@ export default function Matches() {
       list.push({
         id: "completed",
         title: "Completed Matches",
-        subtitle: "Final results, match outcomes, and scores",
+        subtitle: "Final scores and verified match results",
         icon: CheckCircle2,
         color: "text-broadcast",
         badgeBg: "bg-broadcast/15 text-broadcast border-broadcast/30",
@@ -139,18 +140,27 @@ export default function Matches() {
             Live, upcoming, and completed football and cricket matches updated in real time.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <DataFreshnessBadge cacheInfo={cacheInfo} sport={sport} />
           <button
-            onClick={refetch}
-            className="flex items-center gap-1.5 rounded-full border border-white/10 px-3.5 py-1.5 text-xs text-ink-muted transition hover:border-white/20 hover:text-ink"
-            title="Refresh match data from backend"
+            onClick={handleRefreshClick}
+            disabled={refreshing}
+            className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-4 py-1.5 text-xs font-medium text-ink transition hover:border-white/20 hover:bg-white/[0.08] disabled:opacity-50"
+            title="Fetch latest scores from sports providers"
           >
-            <RefreshCw className="h-3.5 w-3.5" />
-            Refresh
+            <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin text-broadcast" : ""}`} />
+            {refreshing ? "Refreshing…" : "Refresh"}
           </button>
         </div>
       </div>
+
+      {/* Refresh Status Notice */}
+      {refreshNotice && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-broadcast/30 bg-broadcast/10 px-4 py-2 text-xs text-broadcast transition">
+          <Check className="h-3.5 w-3.5" />
+          {refreshNotice}
+        </div>
+      )}
 
       {/* Filter controls */}
       <div className="glass flex flex-col gap-4 p-4 sm:p-5">
@@ -160,12 +170,31 @@ export default function Matches() {
             <SearchBar
               value={query}
               onChange={setQuery}
-              placeholder="Search teams, competitions, T20, ODI..."
+              placeholder="Search teams, countries, BAN, IND, RMA..."
             />
           </div>
         </div>
 
-        <StatusTabs value={status} onChange={setStatus} options={statusOptions} />
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.06] pt-4">
+          <StatusTabs value={status} onChange={setStatus} options={statusOptions} />
+
+          {/* Sort selection */}
+          <div className="flex items-center gap-2 text-xs">
+            <SlidersHorizontal className="h-3.5 w-3.5 text-ink-faint" />
+            <span className="text-ink-muted">Sort:</span>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="rounded-lg border border-white/10 bg-bg-card px-2.5 py-1 text-xs text-ink focus:border-broadcast focus:outline-none"
+            >
+              {sortOptions.map((opt) => (
+                <option key={opt.id} value={opt.id} className="bg-bg-elevated text-ink">
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
 
         {/* Quick format & tournament filters */}
         <div className="flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-3 text-xs">
@@ -174,10 +203,11 @@ export default function Matches() {
           </span>
           {[
             { label: "All Matches", q: "", st: "all", sp: "all" },
-            { label: "🏏 T20 Cricket", q: "T20", st: "all", sp: "cricket" },
+            { label: "🏏 International Cricket", q: "international", st: "all", sp: "cricket" },
             { label: "🔴 Live Right Now", q: "", st: "live", sp: "all" },
             { label: "⚽ Premier League", q: "Premier League", st: "all", sp: "football" },
-            { label: "🏆 Champions / Cups", q: "Cup", st: "all", sp: "all" },
+            { label: "🏆 Champions League", q: "Champions League", st: "all", sp: "football" },
+            { label: "🏏 T20 Matches", q: "T20", st: "all", sp: "cricket" },
           ].map((item) => {
             const active =
               (item.q === "" && item.st === status && (item.st === "live" || (query === "" && sport === item.sp))) ||
@@ -228,7 +258,7 @@ export default function Matches() {
             title="No matches found"
             subtitle={
               query
-                ? `No matches match "${query}". Try searching "T20", a team name, or clear search.`
+                ? `No matches match "${query}". Try searching an abbreviation like "BAN", "IND", "RMA", or clear search.`
                 : "Try a different sport or status filter."
             }
           />

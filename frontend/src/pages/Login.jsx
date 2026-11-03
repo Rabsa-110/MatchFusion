@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import { Flame, ShieldCheck } from "lucide-react";
 
 export default function Login() {
   const { login } = useAuth();
@@ -31,28 +32,51 @@ export default function Login() {
       <div className="hidden lg:block">
         <div className="glass card-sheen relative overflow-hidden p-10">
           <div className="pointer-events-none absolute inset-0 bg-fusion-radial" />
-          <p className="eyebrow relative mb-4">Welcome back</p>
+          <div className="relative mb-6 flex items-center gap-2">
+            <Flame className="h-5 w-5 text-live" />
+            <p className="eyebrow">MatchFusion Network</p>
+          </div>
           <h2 className="relative font-display text-3xl font-semibold leading-tight text-ink">
             Pick up right where the <span className="text-gradient">fusion</span> left off.
           </h2>
           <p className="relative mt-4 max-w-sm text-sm text-ink-muted">
-            Your polls, posts, and followed matches are waiting for you.
+            Your polls, match predictions, and community discussions are waiting for you.
           </p>
+          <div className="relative mt-6 space-y-3 text-sm text-ink-muted">
+            <div className="flex items-center gap-2.5">
+              <ShieldCheck className="h-4 w-4 text-live" />
+              <span>Full access to voting and post reactions</span>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <ShieldCheck className="h-4 w-4 text-live" />
+              <span>AI analysis with verified statistical probability breakdowns</span>
+            </div>
+          </div>
         </div>
       </div>
 
       <div className="mx-auto w-full max-w-sm">
-        <h1 className="font-display text-2xl font-semibold text-ink">Log in</h1>
+        <div className="mb-6 flex items-center gap-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-broadcast to-intel font-display font-bold text-white shadow-lg">
+            MF
+          </div>
+          <span className="font-display text-xl font-bold tracking-tight text-ink">
+            Match<span className="text-gradient">Fusion</span>
+          </span>
+        </div>
+
+        <h1 className="font-display text-2xl font-semibold text-ink">Sign in</h1>
         <p className="mt-1.5 text-sm text-ink-muted">
-          Sign in to your MatchFusion account.
+          Access your MatchFusion account and activity.
         </p>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-ink-muted">Email</label>
+            <label className="mb-1.5 block text-xs font-medium text-ink-muted">Email address</label>
             <input
               type="email"
               id="login-email"
+              required
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
               className="input"
@@ -65,6 +89,7 @@ export default function Login() {
             <input
               type="password"
               id="login-password"
+              required
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               className="input"
@@ -81,14 +106,14 @@ export default function Login() {
             disabled={loading}
             className="btn-primary w-full justify-center disabled:opacity-60"
           >
-            {loading ? "Signing in…" : "Log in"}
+            {loading ? "Signing in…" : "Sign in"}
           </button>
         </form>
 
         <p className="mt-6 text-center text-sm text-ink-muted">
           Don't have an account?{" "}
           <Link to="/register" className="font-medium text-broadcast hover:underline">
-            Create one
+            Create an account
           </Link>
         </p>
       </div>

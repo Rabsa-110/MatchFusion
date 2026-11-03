@@ -16,17 +16,49 @@ import authRouter from "./routes/auth.js";
 import postsRouter from "./routes/posts.js";
 import pollsRouter from "./routes/polls.js";
 import aiRouter from "./routes/ai.js";
-import { startScheduler, getCacheStatus, getPlatformStatistics, checkDbConnectivity } from "./services/sportsService.js";
+import {
+  startScheduler,
+  getCacheStatus,
+  getPlatformStatistics,
+  checkDbConnectivity,
+} from "./services/sportsService.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// ── CORS Configuration ───────────────────────────────────────────────────────
+const allowedOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(",").map((s) => s.trim())
+  : ["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"];
+
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN?.split(",") || "http://localhost:5173",
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (
+        allowedOrigins.includes("*") ||
+        allowedOrigins.includes(origin) ||
+        process.env.NODE_ENV !== "production"
+      ) {
+        return callback(null, true);
+      }
+      return callback(new Error("CORS policy violation: origin not allowed"));
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
-app.use(express.json());
+
+app.use(express.json({ limit: "1mb" }));
+
+// ── Security Headers (Lightweight) ──────────────────────────────────────────
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-XSS-Protection", "1; mode=block");
+  next();
+});
 
 // ── Health check ─────────────────────────────────────────────────────────────
 app.get("/api/health", (req, res) => {
@@ -34,6 +66,7 @@ app.get("/api/health", (req, res) => {
   res.json({
     success: true,
     status: "ok",
+    environment: process.env.NODE_ENV || "development",
     timestamp: new Date().toISOString(),
     services: {
       footballApi: !!process.env.API_FOOTBALL_KEY ? "configured" : "not configured",
@@ -82,8 +115,14 @@ app.use((req, res) => {
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(500).json({ success: false, message: "Something went wrong on the server" });
+  if (err.message && err.message.includes("CORS")) {
+    return res.status(403).json({ success: false, message: err.message });
+  }
+  console.error("[server error]", err.message);
+  res.status(500).json({
+    success: false,
+    message: process.env.NODE_ENV === "production" ? "Internal server error" : err.message,
+  });
 });
 
 // ── Start ────────────────────────────────────────────────────────────────────
@@ -94,7 +133,15 @@ const server = app.listen(PORT, () => {
   console.log(`  Football API key: ${process.env.API_FOOTBALL_KEY ? "✓ set" : "✗ missing"}`);
   console.log(`  Cricket API key:  ${process.env.CRICKETDATA_API_KEY ? "✓ set" : "✗ missing"}`);
   console.log(`  Gemini API key:   ${process.env.GEMINI_API_KEY ? "✓ set" : "✗ missing"}`);
-  console.log(`  Database URL:     ${process.env.DATABASE_URL?.includes("PASSWORD") ? "✗ placeholder" : process.env.DATABASE_URL ? "✓ set" : "✗ missing"}`);
+  console.log(
+    `  Database URL:     ${
+      process.env.DATABASE_URL?.includes("PASSWORD")
+        ? "✗ placeholder"
+        : process.env.DATABASE_URL
+        ? "✓ set"
+        : "✗ missing"
+    }`
+  );
 
   // Start background refresh scheduler
   try {
@@ -111,10 +158,12 @@ server.on("error", (err) => {
     console.error(`To close the conflicting process on Windows:`);
     console.error(`  1. Open Command Prompt or PowerShell`);
     console.error(`  2. Run: netstat -ano | findstr :${PORT}`);
-    console.error(`  3. Run: taskkill /PID <PID> /F  (replace <PID> with the number from the last column)\n`);
+    console.error(`  3. Run: taskkill /PID <PID> /F\n`);
     process.exit(1);
   } else {
     console.error("\n❌ [SERVER ERROR]", err.message);
     process.exit(1);
   }
 });
+
+export default app;

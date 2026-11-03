@@ -1,0 +1,7 @@
+# MatchFusion Robots.txt
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /profile
+
+Sitemap: https://matchfusion.vercel.app/sitemap.xml

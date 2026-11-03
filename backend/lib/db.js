@@ -3,7 +3,9 @@
 //
 // Dual-mode architecture:
 // 1. PostgreSQL via Prisma Client (Primary): Live Supabase PostgreSQL instance.
-// 2. Persistent Local Storage (Fallback): If PostgreSQL is unreachable.
+// 2. Persistent Local Storage (Fallback): ONLY enabled in development when explicitly
+//    configured via DB_FALLBACK_ENABLED=true. In production, this fallback is STRICTLY DISABLED
+//    to ensure data integrity.
 
 import fs from "fs";
 import path from "path";
@@ -15,6 +17,11 @@ const __dirname = path.dirname(__filename);
 const DATA_DIR = path.resolve(__dirname, "../data");
 const LOCAL_DB_FILE = path.join(DATA_DIR, "localDatabase.json");
 
+// Local JSON fallback is strictly disabled in production
+export const FALLBACK_ENABLED =
+  process.env.NODE_ENV !== "production" &&
+  process.env.DB_FALLBACK_ENABLED === "true";
+
 function isPlaceholderUrl(url) {
   if (!url) return true;
   return (
@@ -23,9 +30,6 @@ function isPlaceholderUrl(url) {
     url.includes("placeholder")
   );
 }
-
-// Local JSON fallback is ONLY enabled in development when explicitly opted in via DB_FALLBACK_ENABLED=true.
-const FALLBACK_ENABLED = process.env.NODE_ENV !== "production" && process.env.DB_FALLBACK_ENABLED === "true";
 
 let prismaActive = !isPlaceholderUrl(process.env.DATABASE_URL);
 
@@ -67,7 +71,7 @@ function saveLocalDb(data) {
   }
 }
 
-// â”€â”€ User Operations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── User Operations ──────────────────────────────────────────────────────────
 
 export async function findUserByEmail(email) {
   if (prismaActive) {
@@ -81,6 +85,9 @@ export async function findUserByEmail(email) {
       prismaActive = false;
     }
   }
+  if (!FALLBACK_ENABLED) {
+    throw new Error("Database connection is not configured or currently unreachable.");
+  }
   const db = loadLocalDb();
   return (db.users || []).find((u) => u.email.toLowerCase() === email.toLowerCase()) || null;
 }
@@ -90,8 +97,14 @@ export async function findUserById(id) {
     try {
       return await prisma.user.findUnique({ where: { id } });
     } catch (e) {
+      if (!FALLBACK_ENABLED) {
+        throw new Error("Database unavailable: " + e.message);
+      }
       prismaActive = false;
     }
+  }
+  if (!FALLBACK_ENABLED) {
+    throw new Error("Database connection is not configured or currently unreachable.");
   }
   const db = loadLocalDb();
   return (db.users || []).find((u) => u.id === id) || null;
@@ -111,6 +124,9 @@ export async function createUser({ name, email, passwordHash }) {
       prismaActive = false;
     }
   }
+  if (!FALLBACK_ENABLED) {
+    throw new Error("Database error: cannot register user without persistent database connectivity.");
+  }
   const db = loadLocalDb();
   const newUser = {
     id: `u-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -125,7 +141,73 @@ export async function createUser({ name, email, passwordHash }) {
   return newUser;
 }
 
-// â”€â”€ Post Operations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+export async function getUserProfileData(userId) {
+  if (prismaActive) {
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          createdAt: true,
+          _count: {
+            select: {
+              posts: true,
+              comments: true,
+              reactions: true,
+              votes: true,
+            },
+          },
+          posts: {
+            orderBy: { createdAt: "desc" },
+            take: 10,
+            include: {
+              _count: { select: { comments: true, reactions: true } },
+            },
+          },
+        },
+      });
+      return user;
+    } catch (e) {
+      if (!FALLBACK_ENABLED) {
+        throw new Error("Database unavailable: " + e.message);
+      }
+    }
+  }
+  const db = loadLocalDb();
+  const user = (db.users || []).find((u) => u.id === userId);
+  if (!user) return null;
+  const userPosts = (db.posts || []).filter((p) => p.authorId === userId);
+  const userComments = (db.comments || []).filter((c) => c.authorId === userId);
+  const userReactions = (db.reactions || []).filter((r) => r.userId === userId);
+  const userVotes = (db.votes || []).filter((v) => v.userId === userId);
+
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    createdAt: user.createdAt,
+    _count: {
+      posts: userPosts.length,
+      comments: userComments.length,
+      reactions: userReactions.length,
+      votes: userVotes.length,
+    },
+    posts: userPosts.slice(0, 10).map((p) => ({
+      id: p.id,
+      content: p.content,
+      createdAt: p.createdAt,
+      matchTag: p.matchTag,
+      _count: {
+        comments: (db.comments || []).filter((c) => c.postId === p.id).length,
+        reactions: p.likes || 0,
+      },
+    })),
+  };
+}
+
+// ── Post Operations ──────────────────────────────────────────────────────────
 
 export async function getPosts({ limit = 30, offset = 0, matchStatus, matchTag } = {}) {
   if (prismaActive) {
@@ -181,9 +263,16 @@ export async function getPosts({ limit = 30, offset = 0, matchStatus, matchTag }
         storage: "postgresql",
       };
     } catch (e) {
+      if (!FALLBACK_ENABLED) {
+        throw new Error("Database unavailable: " + e.message);
+      }
       console.warn("[db] PostgreSQL load posts failed:", e.message);
       prismaActive = false;
     }
+  }
+
+  if (!FALLBACK_ENABLED) {
+    throw new Error("Database connection is not configured or currently unreachable.");
   }
 
   const db = loadLocalDb();
@@ -267,9 +356,16 @@ export async function createPost({ content, matchTag, matchStatus = "ALL", autho
         storage: "postgresql",
       };
     } catch (e) {
+      if (!FALLBACK_ENABLED) {
+        throw new Error("Database unavailable: " + e.message);
+      }
       console.warn("[db] PostgreSQL create post failed:", e.message);
       prismaActive = false;
     }
+  }
+
+  if (!FALLBACK_ENABLED) {
+    throw new Error("Database error: cannot create post without persistent database connectivity.");
   }
 
   const db = loadLocalDb();
@@ -309,6 +405,56 @@ export async function createPost({ content, matchTag, matchStatus = "ALL", autho
   };
 }
 
+export async function updatePost({ postId, authorId, content }) {
+  if (prismaActive) {
+    try {
+      const existing = await prisma.post.findUnique({ where: { id: postId } });
+      if (!existing) return { notFound: true };
+      if (existing.authorId !== authorId) return { unauthorized: true };
+
+      const updated = await prisma.post.update({
+        where: { id: postId },
+        data: { content: content.trim() },
+        include: { author: { select: { id: true, name: true } } },
+      });
+      return { success: true, post: updated };
+    } catch (e) {
+      if (!FALLBACK_ENABLED) throw e;
+    }
+  }
+
+  const db = loadLocalDb();
+  const post = (db.posts || []).find((p) => p.id === postId);
+  if (!post) return { notFound: true };
+  if (post.authorId !== authorId) return { unauthorized: true };
+  post.content = content.trim();
+  saveLocalDb(db);
+  return { success: true, post };
+}
+
+export async function deletePost({ postId, authorId }) {
+  if (prismaActive) {
+    try {
+      const existing = await prisma.post.findUnique({ where: { id: postId } });
+      if (!existing) return { notFound: true };
+      if (existing.authorId !== authorId) return { unauthorized: true };
+
+      await prisma.post.delete({ where: { id: postId } });
+      return { success: true };
+    } catch (e) {
+      if (!FALLBACK_ENABLED) throw e;
+    }
+  }
+
+  const db = loadLocalDb();
+  const idx = (db.posts || []).findIndex((p) => p.id === postId);
+  if (idx < 0) return { notFound: true };
+  if (db.posts[idx].authorId !== authorId) return { unauthorized: true };
+  db.posts.splice(idx, 1);
+  saveLocalDb(db);
+  return { success: true };
+}
+
 export async function togglePostReaction({ userId, postId, type = "like" }) {
   if (prismaActive) {
     try {
@@ -325,8 +471,15 @@ export async function togglePostReaction({ userId, postId, type = "like" }) {
         return { liked: true, likes: count };
       }
     } catch (e) {
+      if (!FALLBACK_ENABLED) {
+        throw new Error("Database unavailable: " + e.message);
+      }
       prismaActive = false;
     }
+  }
+
+  if (!FALLBACK_ENABLED) {
+    throw new Error("Database error: cannot toggle reaction without database connectivity.");
   }
 
   const db = loadLocalDb();
@@ -350,7 +503,7 @@ export async function togglePostReaction({ userId, postId, type = "like" }) {
   return { liked, likes: post ? post.likes : 0 };
 }
 
-// â”€â”€ Comment Operations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Comment Operations ───────────────────────────────────────────────────────
 
 export async function getComments(postId) {
   if (prismaActive) {
@@ -370,8 +523,15 @@ export async function getComments(postId) {
         createdAt: c.createdAt.toISOString(),
       }));
     } catch (e) {
+      if (!FALLBACK_ENABLED) {
+        throw new Error("Database unavailable: " + e.message);
+      }
       prismaActive = false;
     }
+  }
+
+  if (!FALLBACK_ENABLED) {
+    throw new Error("Database error: cannot load comments without database connectivity.");
   }
 
   const db = loadLocalDb();
@@ -409,8 +569,15 @@ export async function createComment({ postId, authorId, authorName, content }) {
         createdAt: comment.createdAt.toISOString(),
       };
     } catch (e) {
+      if (!FALLBACK_ENABLED) {
+        throw new Error("Database unavailable: " + e.message);
+      }
       prismaActive = false;
     }
+  }
+
+  if (!FALLBACK_ENABLED) {
+    throw new Error("Database error: cannot post comment without database connectivity.");
   }
 
   const db = loadLocalDb();
@@ -436,7 +603,30 @@ export async function createComment({ postId, authorId, authorName, content }) {
   };
 }
 
-// â”€â”€ Poll Operations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+export async function deleteComment({ commentId, authorId }) {
+  if (prismaActive) {
+    try {
+      const existing = await prisma.comment.findUnique({ where: { id: commentId } });
+      if (!existing) return { notFound: true };
+      if (existing.authorId !== authorId) return { unauthorized: true };
+
+      await prisma.comment.delete({ where: { id: commentId } });
+      return { success: true };
+    } catch (e) {
+      if (!FALLBACK_ENABLED) throw e;
+    }
+  }
+
+  const db = loadLocalDb();
+  const idx = (db.comments || []).findIndex((c) => c.id === commentId);
+  if (idx < 0) return { notFound: true };
+  if (db.comments[idx].authorId !== authorId) return { unauthorized: true };
+  db.comments.splice(idx, 1);
+  saveLocalDb(db);
+  return { success: true };
+}
+
+// ── Poll Operations ──────────────────────────────────────────────────────────
 
 export async function getPolls(matchStatus = null, currentUserId = null) {
   if (prismaActive) {
@@ -446,9 +636,10 @@ export async function getPolls(matchStatus = null, currentUserId = null) {
         where.matchStatus = matchStatus.toUpperCase();
       }
 
-      let polls = await prisma.poll.findMany({
+      const polls = await prisma.poll.findMany({
         where,
         include: {
+          creator: { select: { id: true, name: true } },
           options: {
             include: {
               votes: true,
@@ -458,23 +649,6 @@ export async function getPolls(matchStatus = null, currentUserId = null) {
         },
         orderBy: { createdAt: "desc" },
       });
-
-      // If no polls exist in database, initialize real match-connected polls
-      if (polls.length === 0) {
-        await initDefaultPolls();
-        polls = await prisma.poll.findMany({
-          where,
-          include: {
-            options: {
-              include: {
-                votes: true,
-                _count: { select: { votes: true } },
-              },
-            },
-          },
-          orderBy: { createdAt: "desc" },
-        });
-      }
 
       return polls.map((p) => {
         let userVotedOptionId = null;
@@ -495,8 +669,10 @@ export async function getPolls(matchStatus = null, currentUserId = null) {
         return {
           id: p.id,
           question: p.question,
-          matchStatus: p.matchStatus || "LIVE",
+          matchStatus: p.matchStatus || "ALL",
           matchId: p.matchId,
+          creatorName: p.creator?.name || "MatchFusion",
+          creatorId: p.creatorId,
           totalVotes,
           userVotedOptionId,
           options,
@@ -504,127 +680,157 @@ export async function getPolls(matchStatus = null, currentUserId = null) {
         };
       });
     } catch (e) {
+      if (!FALLBACK_ENABLED) {
+        throw new Error("Database unavailable: " + e.message);
+      }
       console.warn("[db] PostgreSQL get polls failed:", e.message);
       prismaActive = false;
     }
   }
 
-  const db = loadLocalDb();
-  let list = db.polls || [];
-  if (list.length === 0) {
-    list = [
-      {
-        id: "poll-live-1",
-        question: "Who will win the ongoing Pakistan vs Sri Lanka match?",
-        matchStatus: "LIVE",
-        options: [
-          { id: "opt-1", label: "Pakistan", votes: 45 },
-          { id: "opt-2", label: "Sri Lanka", votes: 52 },
-        ],
-      },
-      {
-        id: "poll-up-1",
-        question: "Upcoming: Will Real Madrid or Barcelona take all 3 points tonight?",
-        matchStatus: "UPCOMING",
-        options: [
-          { id: "opt-3", label: "Real Madrid Win", votes: 38 },
-          { id: "opt-4", label: "Draw", votes: 14 },
-          { id: "opt-5", label: "Barcelona Win", votes: 41 },
-        ],
-      },
-      {
-        id: "poll-comp-1",
-        question: "Completed: South Africa vs Australia Test: Outstanding bowler of the match?",
-        matchStatus: "COMPLETED",
-        options: [
-          { id: "opt-6", label: "Mitchell Starc", votes: 62 },
-          { id: "opt-7", label: "Kagiso Rabada", votes: 48 },
-        ],
-      },
-    ];
-    db.polls = list;
-    saveLocalDb(db);
+  if (!FALLBACK_ENABLED) {
+    throw new Error("Database connection is not configured or currently unreachable.");
   }
 
+  const db = loadLocalDb();
+  let list = db.polls || [];
   if (matchStatus && matchStatus !== "ALL" && matchStatus !== "all") {
     const upper = matchStatus.toUpperCase();
     list = list.filter((p) => p.matchStatus === upper);
   }
 
   return list.map((p) => {
-    const totalVotes = p.options.reduce((sum, o) => sum + (o.votes || 0), 0);
+    let userVotedOptionId = null;
+    let totalVotes = 0;
+    const options = (p.options || []).map((opt) => {
+      totalVotes += opt.votes || 0;
+      if (currentUserId && (db.votes || []).some((v) => v.userId === currentUserId && v.optionId === opt.id)) {
+        userVotedOptionId = opt.id;
+      }
+      return opt;
+    });
     return {
       ...p,
       totalVotes,
-      userVotedOptionId: null,
+      userVotedOptionId,
+      options,
     };
   });
 }
 
-async function initDefaultPolls() {
-  try {
-    const p1 = await prisma.poll.create({
-      data: {
-        question: "Who will win the ongoing Pakistan vs Sri Lanka match?",
-        matchStatus: "LIVE",
-        options: {
-          create: [{ label: "Pakistan" }, { label: "Sri Lanka" }],
+export async function createPollInDb({ question, options, matchId, matchStatus = "ALL", creatorId }) {
+  if (prismaActive) {
+    try {
+      const poll = await prisma.poll.create({
+        data: {
+          question: question.trim(),
+          matchStatus: matchStatus.toUpperCase(),
+          matchId: matchId || null,
+          creatorId: creatorId || null,
+          options: {
+            create: options.map((label) => ({ label: label.trim() })),
+          },
         },
-      },
-    });
+        include: {
+          creator: { select: { id: true, name: true } },
+          options: true,
+        },
+      });
 
-    const p2 = await prisma.poll.create({
-      data: {
-        question: "Upcoming: Will Real Madrid or Barcelona take all 3 points tonight?",
-        matchStatus: "UPCOMING",
-        options: {
-          create: [{ label: "Real Madrid Win" }, { label: "Draw" }, { label: "Barcelona Win" }],
-        },
-      },
-    });
-
-    const p3 = await prisma.poll.create({
-      data: {
-        question: "Completed: South Africa vs Australia Test: Outstanding performer?",
-        matchStatus: "COMPLETED",
-        options: {
-          create: [{ label: "Travis Head" }, { label: "Kagiso Rabada" }],
-        },
-      },
-    });
-  } catch (err) {
-    console.warn("[db] initDefaultPolls error:", err.message);
+      return {
+        id: poll.id,
+        question: poll.question,
+        matchStatus: poll.matchStatus,
+        matchId: poll.matchId,
+        creatorName: poll.creator?.name || "Fan",
+        creatorId: poll.creatorId,
+        totalVotes: 0,
+        userVotedOptionId: null,
+        options: poll.options.map((o) => ({ id: o.id, label: o.label, votes: 0 })),
+        createdAt: poll.createdAt.toISOString(),
+      };
+    } catch (e) {
+      if (!FALLBACK_ENABLED) {
+        throw new Error("Database unavailable: " + e.message);
+      }
+      prismaActive = false;
+    }
   }
+
+  if (!FALLBACK_ENABLED) {
+    throw new Error("Database error: cannot create poll without database connectivity.");
+  }
+
+  const db = loadLocalDb();
+  if (!db.polls) db.polls = [];
+  const pollId = `poll-${Date.now()}`;
+  const newPoll = {
+    id: pollId,
+    question: question.trim(),
+    matchStatus: matchStatus.toUpperCase(),
+    matchId: matchId || null,
+    creatorId,
+    totalVotes: 0,
+    userVotedOptionId: null,
+    options: options.map((label, idx) => ({ id: `opt-${pollId}-${idx}`, label: label.trim(), votes: 0 })),
+    createdAt: new Date().toISOString(),
+  };
+  db.polls.unshift(newPoll);
+  saveLocalDb(db);
+  return newPoll;
 }
 
 export async function votePoll({ pollId, optionId, userId }) {
   if (prismaActive) {
     try {
-      // Check if user already voted on ANY option in this poll
-      const existingVote = await prisma.vote.findFirst({
-        where: {
-          userId,
-          option: { pollId },
-        },
+      // Use interactive transaction to guarantee single vote per user per poll
+      return await prisma.$transaction(async (tx) => {
+        // 1. Check if user already voted on ANY option in this poll
+        const existingVote = await tx.vote.findFirst({
+          where: {
+            userId,
+            OR: [
+              { pollId },
+              { option: { pollId } },
+            ],
+          },
+        });
+
+        if (existingVote) {
+          return { success: false, message: "You have already voted on this poll" };
+        }
+
+        // 2. Verify the option belongs to this poll
+        const option = await tx.pollOption.findFirst({
+          where: { id: optionId, pollId },
+        });
+
+        if (!option) {
+          return { success: false, message: "Invalid option for this poll" };
+        }
+
+        // 3. Create the vote record
+        await tx.vote.create({
+          data: {
+            userId,
+            optionId,
+            pollId,
+          },
+        });
+
+        return { success: true, message: "Vote registered successfully" };
       });
-
-      if (existingVote) {
-        return { success: false, message: "You have already voted on this poll" };
-      }
-
-      await prisma.vote.create({
-        data: {
-          userId,
-          optionId,
-          pollId,  // denormalized for unique-per-poll DB constraint
-        },
-      });
-
-      return { success: true, message: "Vote registered" };
     } catch (e) {
+      if (!FALLBACK_ENABLED) {
+        throw new Error("Database unavailable: " + e.message);
+      }
       console.warn("[db] PostgreSQL vote poll failed:", e.message);
       prismaActive = false;
     }
+  }
+
+  if (!FALLBACK_ENABLED) {
+    throw new Error("Database error: cannot register vote without database connectivity.");
   }
 
   const db = loadLocalDb();
@@ -639,14 +845,14 @@ export async function votePoll({ pollId, optionId, userId }) {
   db.votes.push({ userId, pollId, optionId, createdAt: new Date().toISOString() });
   const poll = (db.polls || []).find((p) => p.id === pollId);
   if (poll) {
-    const opt = poll.options.find((o) => o.id === optionId);
+    const opt = (poll.options || []).find((o) => o.id === optionId);
     if (opt) opt.votes = (opt.votes || 0) + 1;
   }
   saveLocalDb(db);
   return { success: true, message: "Vote registered" };
 }
 
-// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
 function timeAgo(date) {
   const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);

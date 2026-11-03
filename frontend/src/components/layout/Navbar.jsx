@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, Link, useNavigate } from "react-router-dom";
-import { Menu, X, Search, Bell, UserRound, LogOut } from "lucide-react";
+import { Menu, X, Search, UserRound, LogOut } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
 
 const navLinks = [
@@ -55,7 +55,7 @@ export default function Navbar() {
         <div className="hidden items-center gap-3 lg:flex">
           <button
             onClick={() => navigate("/matches")}
-            aria-label="Search"
+            aria-label="Search matches"
             className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-ink-muted transition hover:border-white/20 hover:text-ink"
           >
             <Search className="h-4 w-4" />
@@ -73,12 +73,15 @@ export default function Navbar() {
                 <span className="text-sm text-ink">{user.name}</span>
               </button>
               {menuOpen && (
-                <div className="glass absolute right-0 top-12 w-48 overflow-hidden p-1.5">
+                <div className="glass absolute right-0 top-12 w-48 overflow-hidden p-1.5 shadow-2xl">
                   <button
-                    onClick={() => navigate("/community")}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      navigate("/profile");
+                    }}
                     className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-ink-muted hover:bg-white/[0.05] hover:text-ink"
                   >
-                    <Bell className="h-4 w-4" /> Notifications
+                    <UserRound className="h-4 w-4" /> My Profile
                   </button>
                   <button
                     onClick={() => {
@@ -88,7 +91,7 @@ export default function Navbar() {
                     }}
                     className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-alert hover:bg-alert/10"
                   >
-                    <LogOut className="h-4 w-4" /> Log out
+                    <LogOut className="h-4 w-4" /> Sign Out
                   </button>
                 </div>
               )}
@@ -134,6 +137,19 @@ export default function Navbar() {
                 {link.label}
               </NavLink>
             ))}
+            {user && (
+              <NavLink
+                to="/profile"
+                onClick={() => setOpen(false)}
+                className={({ isActive }) =>
+                  `rounded-lg px-3 py-2.5 text-sm font-medium ${
+                    isActive ? "bg-white/[0.06] text-ink" : "text-ink-muted"
+                  }`
+                }
+              >
+                My Profile
+              </NavLink>
+            )}
           </nav>
           <div className="mt-4 flex items-center gap-3 border-t border-white/[0.06] pt-4">
             {user ? (
@@ -144,14 +160,22 @@ export default function Navbar() {
                 }}
                 className="btn-ghost w-full justify-center text-sm"
               >
-                <UserRound className="h-4 w-4" /> Log out ({user.name})
+                <LogOut className="h-4 w-4" /> Sign Out ({user.name})
               </button>
             ) : (
               <>
-                <Link to="/login" onClick={() => setOpen(false)} className="btn-ghost flex-1 justify-center text-sm">
+                <Link
+                  to="/login"
+                  onClick={() => setOpen(false)}
+                  className="btn-ghost flex-1 justify-center text-sm"
+                >
                   Log in
                 </Link>
-                <Link to="/register" onClick={() => setOpen(false)} className="btn-primary flex-1 justify-center text-sm">
+                <Link
+                  to="/register"
+                  onClick={() => setOpen(false)}
+                  className="btn-primary flex-1 justify-center text-sm"
+                >
                   Sign up
                 </Link>
               </>

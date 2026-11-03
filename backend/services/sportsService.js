@@ -677,33 +677,8 @@ export async function getPlayers(sport = "all") {
     }
   }
 
-  // If players list has fewer than 8, populate with top performers from real active matches
-  const topPerformers = [
-    { name: "Vinicius Jr", team: "Real Madrid", sport: "football", position: "Forward", role: "Forward", goals: 4, assists: 3 },
-    { name: "Lamine Yamal", team: "Barcelona", sport: "football", position: "Forward", role: "Forward", goals: 3, assists: 4 },
-    { name: "Erling Haaland", team: "Manchester City", sport: "football", position: "Forward", role: "Forward", goals: 10, assists: 1 },
-    { name: "Jude Bellingham", team: "Real Madrid", sport: "football", position: "Midfielder", role: "Midfielder", goals: 2, assists: 5 },
-    { name: "Bukayo Saka", team: "Arsenal", sport: "football", position: "Forward", role: "Forward", goals: 3, assists: 4 },
-    { name: "Mohamed Salah", team: "Liverpool", sport: "football", position: "Forward", role: "Forward", goals: 5, assists: 3 },
-    { name: "Babar Azam", team: "Pakistan", sport: "cricket", position: "Batsman", role: "Top-order Batter", runs: 285, wickets: 0 },
-    { name: "Mohammad Rizwan", team: "Pakistan", sport: "cricket", position: "Wicketkeeper", role: "Wicketkeeper Batter", runs: 240, wickets: 0 },
-    { name: "Pathum Nissanka", team: "Sri Lanka", sport: "cricket", position: "Batsman", role: "Opening Batter", runs: 215, wickets: 0 },
-    { name: "Travis Head", team: "Australia", sport: "cricket", position: "All-Rounder", role: "All-Rounder", runs: 198, wickets: 3 },
-    { name: "Kagiso Rabada", team: "South Africa", sport: "cricket", position: "Bowler", role: "Fast Bowler", runs: 34, wickets: 9 },
-    { name: "Liton Das", team: "Bangladesh", sport: "cricket", position: "Wicketkeeper", role: "Wicketkeeper Batter", runs: 182, wickets: 0 },
-  ];
-
-  for (const tp of topPerformers) {
-    const key = `${tp.sport}-${tp.name.toLowerCase()}`;
-    if (!playerMap.has(key)) {
-      playerMap.set(key, {
-        id: `p-${tp.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
-        ...tp,
-        matches: 4,
-      });
-    }
-  }
-
+  // Verified real players derived directly from provider match events & scorecards
+  // (Fabricated / hardcoded players strictly prohibited per policy)
   const allPlayers = Array.from(playerMap.values());
   if (sport === "all") return allPlayers;
   return allPlayers.filter((p) => p.sport === sport);

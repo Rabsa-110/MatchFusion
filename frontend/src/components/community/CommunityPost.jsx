@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Heart, MessageCircle, Share2, Send, Check } from "lucide-react";
+import { Heart, MessageCircle, Share2, Send, Check, Trash2 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import api from "../../api/axios.js";
 
-export default function CommunityPost({ post }) {
+export default function CommunityPost({ post, onDelete }) {
   const { user } = useAuth();
   const [liked, setLiked] = useState(
     user && post.reactions ? post.reactions.some((r) => r.userId === user.id) : false
@@ -15,6 +15,9 @@ export default function CommunityPost({ post }) {
   const [newComment, setNewComment] = useState("");
   const [submittingComment, setSubmittingComment] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const isAuthor = user && post.authorId === user.id;
 
   const toggleLike = async () => {
     if (!user) {
@@ -22,7 +25,6 @@ export default function CommunityPost({ post }) {
       return;
     }
 
-    // Optimistic UI update
     const nextLiked = !liked;
     setLiked(nextLiked);
     setLikes((v) => (nextLiked ? v + 1 : Math.max(0, v - 1)));
@@ -34,7 +36,6 @@ export default function CommunityPost({ post }) {
         if (typeof data.likes === "number") setLikes(data.likes);
       }
     } catch {
-      // Revert on error
       setLiked(!nextLiked);
       setLikes((v) => (!nextLiked ? v + 1 : Math.max(0, v - 1)));
     }
@@ -61,6 +62,29 @@ export default function CommunityPost({ post }) {
     }
   };
 
+  const handleDeleteComment = async (commentId) => {
+    if (!confirm("Delete this comment?")) return;
+    try {
+      await api.delete(`/posts/${post.id}/comments/${commentId}`);
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+      setCommentsCount((c) => Math.max(0, c - 1));
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to delete comment");
+    }
+  };
+
+  const handleDeletePost = async () => {
+    if (!confirm("Are you sure you want to delete this post?")) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/posts/${post.id}`);
+      if (onDelete) onDelete(post.id);
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to delete post");
+      setDeleting(false);
+    }
+  };
+
   const handleShare = async () => {
     const shareUrl = `${window.location.origin}/community#post-${post.id}`;
     const shareData = {
@@ -74,7 +98,7 @@ export default function CommunityPost({ post }) {
         await navigator.share(shareData);
         return;
       } catch {
-        // Fallback to clipboard
+        // Fallback
       }
     }
 
@@ -86,6 +110,8 @@ export default function CommunityPost({ post }) {
       alert("Link copied: " + shareUrl);
     }
   };
+
+  if (deleting) return null;
 
   return (
     <article id={`post-${post.id}`} className="glass card-sheen p-5 transition hover:border-white/15">
@@ -102,19 +128,32 @@ export default function CommunityPost({ post }) {
             <p className="text-[11px] text-ink-faint">{post.time}</p>
           </div>
         </div>
-        {post.matchStatus && post.matchStatus !== "ALL" && (
-          <span
-            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
-              post.matchStatus === "LIVE"
-                ? "bg-live/15 text-live"
-                : post.matchStatus === "UPCOMING"
-                ? "bg-intel/15 text-intel"
-                : "bg-broadcast/15 text-broadcast"
-            }`}
-          >
-            {post.matchStatus}
-          </span>
-        )}
+
+        <div className="flex items-center gap-2">
+          {post.matchStatus && post.matchStatus !== "ALL" && (
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+                post.matchStatus === "LIVE"
+                  ? "bg-live/15 text-live"
+                  : post.matchStatus === "UPCOMING"
+                  ? "bg-intel/15 text-intel"
+                  : "bg-broadcast/15 text-broadcast"
+              }`}
+            >
+              {post.matchStatus}
+            </span>
+          )}
+
+          {isAuthor && (
+            <button
+              onClick={handleDeletePost}
+              className="text-ink-faint transition hover:text-alert p-1"
+              title="Delete your post"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
       <p className="mt-3.5 text-sm leading-relaxed text-ink-muted">{post.content}</p>
@@ -174,7 +213,18 @@ export default function CommunityPost({ post }) {
                 <div key={c.id} className="rounded-lg bg-white/[0.03] p-3 border border-white/[0.04]">
                   <div className="flex items-center justify-between text-[11px]">
                     <span className="font-semibold text-ink">{c.user}</span>
-                    <span className="text-ink-faint">{c.time}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-ink-faint">{c.time}</span>
+                      {user && c.authorId === user.id && (
+                        <button
+                          onClick={() => handleDeleteComment(c.id)}
+                          className="text-ink-faint hover:text-alert"
+                          title="Delete comment"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <p className="mt-1 text-xs text-ink-muted leading-relaxed">{c.content}</p>
                 </div>

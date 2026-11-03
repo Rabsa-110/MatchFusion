@@ -1,9 +1,9 @@
-﻿// backend/routes/polls.js
+// backend/routes/polls.js
 // Match polls backed by persistent database.
 
 import { Router } from "express";
 import { requireAuth, optionalAuth } from "../middleware/auth.js";
-import { getPolls, votePoll } from "../lib/db.js";
+import { getPolls, votePoll, createPollInDb } from "../lib/db.js";
 
 const router = Router();
 
@@ -25,7 +25,47 @@ router.get("/", optionalAuth, async (req, res) => {
 });
 
 /**
- * POST /api/polls/:id/vote â€” Vote for an option
+ * POST /api/polls — Create a new poll (linked to a real match or general discussion)
+ * Body: { question, options: string[], matchId?, matchStatus? }
+ */
+router.post("/", requireAuth, async (req, res) => {
+  const { question, options, matchId, matchStatus = "ALL" } = req.body;
+
+  if (!question || !question.trim()) {
+    return res.status(400).json({ success: false, message: "Poll question is required" });
+  }
+
+  if (!options || !Array.isArray(options) || options.length < 2) {
+    return res.status(400).json({ success: false, message: "At least 2 options are required" });
+  }
+
+  if (options.length > 6) {
+    return res.status(400).json({ success: false, message: "A maximum of 6 options is allowed" });
+  }
+
+  const cleanOptions = options.map((o) => String(o).trim()).filter(Boolean);
+  if (cleanOptions.length < 2) {
+    return res.status(400).json({ success: false, message: "All options must be non-empty" });
+  }
+
+  try {
+    const poll = await createPollInDb({
+      question: question.trim(),
+      options: cleanOptions,
+      matchId: matchId || null,
+      matchStatus,
+      creatorId: req.user.sub,
+    });
+
+    return res.status(201).json({ success: true, poll });
+  } catch (err) {
+    console.error("[polls] create error:", err.message);
+    return res.status(500).json({ success: false, message: "Failed to create poll: " + err.message });
+  }
+});
+
+/**
+ * POST /api/polls/:id/vote — Vote for an option
  * Body: { optionId }
  */
 router.post("/:id/vote", requireAuth, async (req, res) => {

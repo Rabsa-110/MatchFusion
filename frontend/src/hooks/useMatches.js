@@ -1,6 +1,5 @@
-﻿// frontend/src/hooks/useMatches.js
-// Custom hook for fetching match data from the backend API.
-// Includes loading, error, and data-freshness states.
+// frontend/src/hooks/useMatches.js
+// Custom hook for fetching match data from MatchFusion backend API.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import api from "../api/axios.js";
@@ -9,24 +8,29 @@ import api from "../api/axios.js";
  * @param {Object} options
  * @param {string} [options.sport] - "football" | "cricket" | "all"
  * @param {string} [options.status] - "live" | "upcoming" | "completed" | "all"
+ * @param {string} [options.search] - text search / alias
+ * @param {string} [options.sortBy] - "priority" | "live" | "recent" | "upcoming"
  * @param {number} [options.limit] - max results
- * @param {boolean} [options.autoRefresh] - poll the backend (not provider) every refreshIntervalMs
- * @param {number} [options.refreshIntervalMs] - how often to re-fetch from our own backend (default: 60s)
+ * @param {boolean} [options.autoRefresh] - poll backend every refreshIntervalMs
+ * @param {number} [options.refreshIntervalMs] - interval (default: 60s)
  */
 export function useMatches({
   sport = "all",
   status = "all",
+  search,
+  sortBy = "priority",
   limit,
   autoRefresh = false,
   refreshIntervalMs = 60000,
 } = {}) {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [cacheInfo, setCacheInfo] = useState(null);
   const abortRef = useRef(null);
 
-  const fetch = useCallback(async () => {
+  const fetchMatches = useCallback(async () => {
     if (abortRef.current) abortRef.current.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -36,6 +40,8 @@ export function useMatches({
       const params = {};
       if (sport !== "all") params.sport = sport;
       if (status !== "all") params.status = status;
+      if (search) params.search = search;
+      if (sortBy) params.sortBy = sortBy;
       if (limit) params.limit = limit;
 
       const { data } = await api.get("/matches", {
@@ -53,30 +59,63 @@ export function useMatches({
       if (err.name !== "CanceledError" && err.name !== "AbortError") {
         const msg =
           err.response?.data?.message ||
-          "Cannot connect to MatchFusion server. Is the backend running on http://localhost:5000?";
+          "Unable to connect to MatchFusion API. Please check your connection.";
         setError(msg);
       }
     } finally {
       setLoading(false);
     }
-  }, [sport, status, limit]);
+  }, [sport, status, search, sortBy, limit]);
 
   useEffect(() => {
     setLoading(true);
-    fetch();
+    fetchMatches();
 
     let interval;
     if (autoRefresh) {
-      interval = setInterval(fetch, refreshIntervalMs);
+      interval = setInterval(fetchMatches, refreshIntervalMs);
     }
 
     return () => {
       if (abortRef.current) abortRef.current.abort();
       clearInterval(interval);
     };
-  }, [fetch, autoRefresh, refreshIntervalMs]);
+  }, [fetchMatches, autoRefresh, refreshIntervalMs]);
 
-  return { matches, loading, error, cacheInfo, refetch: fetch };
+  /**
+   * Triggers a live provider refresh on the backend (POST /api/matches/refresh).
+   * Respects rate limits and updates displayed data immediately upon completion.
+   */
+  const forceRefresh = useCallback(async (targetSport) => {
+    if (refreshing) return;
+    setRefreshing(true);
+    setError(null);
+    try {
+      const { data } = await api.post("/matches/refresh", {
+        sport: targetSport || sport || "all",
+      });
+      // Immediately reload fresh data
+      await fetchMatches();
+      return { success: true, message: data.message || "Scores refreshed" };
+    } catch (err) {
+      const msg =
+        err.response?.data?.message ||
+        "Refresh rate limit reached. Matches are refreshed automatically every 30 minutes.";
+      return { success: false, error: msg };
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshing, sport, fetchMatches]);
+
+  return {
+    matches,
+    loading,
+    refreshing,
+    error,
+    cacheInfo,
+    refetch: fetchMatches,
+    forceRefresh,
+  };
 }
 
 /**
@@ -107,7 +146,7 @@ export function useMatch(id) {
         if (err.name !== "CanceledError" && err.name !== "AbortError") {
           setError(
             err.response?.data?.message ||
-              "Cannot connect to MatchFusion server."
+              "Unable to load match details. Please try again."
           );
         }
       } finally {

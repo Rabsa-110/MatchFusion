@@ -1,8 +1,8 @@
-﻿// backend/services/footballProvider.js
+// backend/services/footballProvider.js
 //
 // Fetches football match data from API-Football (v3.football.api-sports.io).
 // Free plan: 100 requests/day. This module is called only through sportsService
-// which enforces caching â€” never called directly from routes.
+// which enforces caching — never called directly from routes.
 //
 // Docs: https://www.api-football.com/documentation-v3
 
@@ -122,13 +122,13 @@ export function normalizeFixture(f) {
   };
 }
 
-/** GET /fixtures?live=all â€” currently live matches */
+/** GET /fixtures?live=all — currently live matches */
 export async function fetchLiveFootball() {
   const raw = await apiFetch("/fixtures", { live: "all" });
   return raw.map(normalizeFixture);
 }
 
-/** GET /fixtures?date=YYYY-MM-DD â€” today's matches */
+/** GET /fixtures?date=YYYY-MM-DD — today's matches */
 export async function fetchTodayFootball() {
   const today = new Date().toISOString().slice(0, 10);
   const raw = await apiFetch("/fixtures", { date: today });
@@ -145,7 +145,7 @@ export async function fetchUpcomingFootball(daysAhead = 3) {
   // Free plan: only seasons 2022-2024 are accessible for historical/upcoming endpoints.
   // For current-season upcoming fixtures, the /fixtures?live=all and /fixtures?date= endpoints
   // work without season restriction. We use season 2024 as the base.
-  const season = 2024;
+  const season = (function() { if (process.env.API_FOOTBALL_SEASON) return parseInt(process.env.API_FOOTBALL_SEASON, 10); const n = new Date(); return n.getMonth() >= 6 ? n.getFullYear() : n.getFullYear() - 1; })();
 
   const results = [];
   for (const leagueId of TARGET_LEAGUES.slice(0, 3)) {
@@ -174,7 +174,7 @@ export async function fetchRecentFootball(daysBack = 3) {
   const from = new Date(Date.now() - daysBack * 86400000).toISOString().slice(0, 10);
   // Free plan only allows 2022-2024. Season 2024 covers results through mid-2025
   // depending on competition. Use 2024 as base for historical results.
-  const season = 2024;
+  const season = (function() { if (process.env.API_FOOTBALL_SEASON) return parseInt(process.env.API_FOOTBALL_SEASON, 10); const n = new Date(); return n.getMonth() >= 6 ? n.getFullYear() : n.getFullYear() - 1; })();
 
   const results = [];
   for (const leagueId of TARGET_LEAGUES.slice(0, 3)) {
@@ -212,7 +212,7 @@ export async function fetchFixtureEvents(externalId) {
         : "sub",
       team: e.team?.name || "",
       player: e.player?.name || null,
-      text: `${e.detail || e.type || "Event"} â€” ${e.team?.name || ""}`,
+      text: `${e.detail || e.type || "Event"} — ${e.team?.name || ""}`,
     }));
   } catch {
     return [];
