@@ -649,14 +649,30 @@ const lastManualRefresh = { football: 0, cricket: 0 };
 
 export async function forceRefresh(sport = "all") {
   const sports = sport === "all" ? ["football", "cricket"] : [sport];
+  let throttledSports = [];
+  let refreshedSports = [];
+
   for (const s of sports) {
-    if (Date.now() - lastManualRefresh[s] < MIN_MANUAL_REFRESH_MS) {
+    const elapsed = Date.now() - lastManualRefresh[s];
+    if (elapsed < MIN_MANUAL_REFRESH_MS) {
+      throttledSports.push(s);
       continue;
     }
     cache[s].fetchedAt = null;
     lastManualRefresh[s] = Date.now();
+    refreshedSports.push(s);
   }
-  return getMatches(sport);
+
+  const matches = await getMatches(sport);
+  return {
+    matches,
+    throttled: throttledSports.length > 0,
+    throttledSports,
+    refreshedSports,
+    nextRefreshAt: throttledSports.length > 0
+      ? new Date(Math.min(...throttledSports.map((s) => lastManualRefresh[s] + MIN_MANUAL_REFRESH_MS))).toISOString()
+      : null,
+  };
 }
 
 /**

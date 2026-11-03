@@ -42,7 +42,7 @@ export default function Matches() {
     setRefreshNotice("Contacting sports data providers...");
     const res = await forceRefresh(sport);
     if (res?.success) {
-      setRefreshNotice("Scores refreshed from live providers!");
+      setRefreshNotice(res?.message || "Scores refreshed from live providers!");
     } else {
       setRefreshNotice(res?.error || "Displaying latest cached match state.");
     }

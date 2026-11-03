@@ -131,11 +131,19 @@ router.get("/", async (req, res) => {
 router.post("/refresh", async (req, res) => {
   const { sport = "all" } = req.body || {};
   try {
-    const matches = await sportsService.forceRefresh(sport);
+    const result = await sportsService.forceRefresh(sport);
+    const matches = Array.isArray(result) ? result : result.matches || [];
+    const throttled = result.throttled || false;
+    const message = throttled
+      ? "Provider data is fresh (cooling down). Showing cached matches."
+      : "Sports data refreshed successfully from providers.";
+
     return res.json({
       success: true,
       count: matches.length,
-      message: "Sports data refreshed successfully",
+      throttled,
+      message,
+      nextRefreshAt: result.nextRefreshAt || null,
       timestamp: new Date().toISOString(),
     });
   } catch (err) {
