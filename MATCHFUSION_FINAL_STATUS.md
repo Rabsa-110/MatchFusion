@@ -165,3 +165,4 @@ Follow the detailed instructions in [DEPLOYMENT_GUIDE.md](file:///e:/Desktop/Pro
 2. **No Data Loss:** Zero existing user records were dropped or deleted. `prisma migrate reset` was never executed.
 3. **Local JSON Fallback Contained:** `FALLBACK_ENABLED=false` ensures all writes target Supabase PostgreSQL; failures return HTTP 503 instead of silent local JSON writes.
 4. **Academic Project Support:** All 5 required report documents in `report-support/` are complete and formatted for immediate use in the SDP-1 Final Project Report.
+
