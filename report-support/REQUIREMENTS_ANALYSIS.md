@@ -108,3 +108,4 @@
 | Styling Framework | Tailwind CSS | v3.4.x |
 | Icons & Charts | Lucide React, Recharts | Latest |
 | Version Control | Git | v2.40+ |
+

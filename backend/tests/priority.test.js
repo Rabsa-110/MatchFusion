@@ -53,3 +53,4 @@ test("matchMatchesSearch identifies matches via abbreviations and full names", (
   assert.equal(matchMatchesSearch(mockMatch, "Champions"), true, "Champions matches competition");
   assert.equal(matchMatchesSearch(mockMatch, "Real Madrid"), false, "Unrelated team does not match");
 });
+

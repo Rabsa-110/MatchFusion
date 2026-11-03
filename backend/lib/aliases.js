@@ -181,3 +181,4 @@ export function getCompetitionPriority(competitionName = "", sport = "") {
   // Default priority
   return sport === "football" ? 60 : 55;
 }
+

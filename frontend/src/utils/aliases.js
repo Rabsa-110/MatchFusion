@@ -77,3 +77,4 @@ export function expandSearch(query) {
   }
   return Array.from(terms);
 }
+

@@ -53,3 +53,4 @@ test("Email validation regex catches malformed emails", () => {
   assert.equal(regex.test("@domain.com"), false);
   assert.equal(regex.test("user@domain"), false);
 });
+

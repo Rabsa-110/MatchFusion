@@ -113,3 +113,4 @@ ALTER TABLE "AIInsight" ADD CONSTRAINT "AIInsight_matchId_fkey" FOREIGN KEY ("ma
 
 -- AddForeignKey
 ALTER TABLE "Player" ADD CONSTRAINT "Player_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+

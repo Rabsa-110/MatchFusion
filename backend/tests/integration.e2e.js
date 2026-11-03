@@ -107,3 +107,4 @@ test("E2E Database Persistence: Register, Post, React, Comment, Poll, Vote, Prof
 
   console.log("✓ Full E2E database persistence workflow verified against live Supabase PostgreSQL!");
 });
+

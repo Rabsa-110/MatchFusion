@@ -39,3 +39,4 @@ test("Single vote per user per poll rule prevents duplicate submissions", () => 
   assert.equal(userCanVote("u-1", "p-2"), true, "Same user CAN vote on a different poll");
   assert.equal(userCanVote("u-2", "p-1"), true, "Different user CAN vote on the poll");
 });
+
