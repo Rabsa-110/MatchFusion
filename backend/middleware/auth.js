@@ -1,4 +1,15 @@
-﻿import jwt from "jsonwebtoken";
+import jwt from "jsonwebtoken";
+
+function getSecret() {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("JWT_SECRET environment variable is missing in production");
+    }
+    return "dev_secret_change_me";
+  }
+  return secret;
+}
 
 // Verifies the "Authorization: Bearer <token>" header and attaches the
 // decoded payload to req.user. Used to protect routes like POST /api/posts.
@@ -11,9 +22,14 @@ export function requireAuth(req, res, next) {
   }
 
   try {
-    req.user = jwt.verify(token, process.env.JWT_SECRET || "dev_secret_change_me");
+    const secret = getSecret();
+    req.user = jwt.verify(token, secret);
     next();
-  } catch {
+  } catch (err) {
+    if (err.message.includes("JWT_SECRET environment variable")) {
+      console.error("[auth] Critical configuration error:", err.message);
+      return res.status(500).json({ success: false, message: "Server authentication misconfigured" });
+    }
     return res.status(401).json({ success: false, message: "Invalid or expired token" });
   }
 }
@@ -29,7 +45,8 @@ export function optionalAuth(req, res, next) {
   }
 
   try {
-    req.user = jwt.verify(token, process.env.JWT_SECRET || "dev_secret_change_me");
+    const secret = getSecret();
+    req.user = jwt.verify(token, secret);
   } catch {
     req.user = null;
   }

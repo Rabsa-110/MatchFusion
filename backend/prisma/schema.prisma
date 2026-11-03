@@ -110,7 +110,7 @@ model Vote {
   optionId String
   option   PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
 
-  pollId   String     // Denormalized for the unique per-poll constraint
+  pollId   String?    // Denormalized for the unique per-poll constraint
 
   // One vote per user per poll (enforced at DB level)
   @@unique([userId, pollId])
