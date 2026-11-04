@@ -222,6 +222,9 @@ export default function Community() {
                   <select
                     value={postCategory}
                     onChange={(e) => setPostCategory(e.target.value)}
+                    style={{ backgroundColor: '#090D16', color: '#F4F7FC', colorScheme: 'dark' }}
+                    className="rounded-lg border border-white/10 bg-[#090D16] px-2.5 py-1 text-xs text-[#F4F7FC]"
+                  > setPostCategory(e.target.value)}
                     className="rounded-lg border border-white/10 bg-midnight-900 px-2.5 py-1 text-xs text-ink"
                   >
                     <option value="ALL">General Discussion</option>
@@ -330,6 +333,10 @@ export default function Community() {
               <select
                 value={pollStatus}
                 onChange={(e) => setPollStatus(e.target.value)}
+                style={{ backgroundColor: '#090D16', color: '#F4F7FC', colorScheme: 'dark' }}
+                className="rounded-lg border border-white/10 bg-[#090D16] px-2.5 py-1 text-xs text-[#F4F7FC]"
+                disabled={!user || creatingPoll}
+              > setPollStatus(e.target.value)}
                 className="rounded-lg border border-white/10 bg-midnight-900 px-2.5 py-1 text-xs text-ink"
                 disabled={!user || creatingPoll}
               >

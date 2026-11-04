@@ -45,6 +45,22 @@ body {
 }
 
 /* Ensure all select and option elements maintain high-contrast dark theme */
+
+:root {
+  color-scheme: dark;
+}
+html, body, select, option, input, textarea {
+  color-scheme: dark;
+}
+select {
+  background-color: #0c1120 !important;
+  color: #f4f7fc !important;
+}
+select option {
+  background-color: #0c1120 !important;
+  color: #f4f7fc !important;
+}
+
 select {
   background-color: #090d16 !important;
   color: #f4f7fc !important;
