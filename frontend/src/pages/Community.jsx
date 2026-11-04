@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { MessageSquare, BarChart3, Plus, X } from "lucide-react";
 import CommunityPost from "../components/community/CommunityPost.jsx";
 import PollCard from "../components/community/PollCard.jsx";
+import MatchAutocomplete from "../components/community/MatchAutocomplete.jsx";
 import EmptyState from "../components/common/EmptyState.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import api from "../api/axios.js";
@@ -35,6 +36,7 @@ export default function Community() {
   const [pollQuestion, setPollQuestion] = useState("");
   const [pollOptions, setPollOptions] = useState(["", ""]);
   const [pollMatchTag, setPollMatchTag] = useState("");
+  const [selectedPollMatch, setSelectedPollMatch] = useState(null);
   const [pollStatus, setPollStatus] = useState("ALL");
   const [creatingPoll, setCreatingPoll] = useState(false);
 
@@ -132,6 +134,7 @@ export default function Community() {
         setPollQuestion("");
         setPollOptions(["", ""]);
         setPollMatchTag("");
+        setSelectedPollMatch(null);
         setActiveTab("post");
         alert("Match poll created successfully!");
       }
@@ -222,10 +225,8 @@ export default function Community() {
                   <select
                     value={postCategory}
                     onChange={(e) => setPostCategory(e.target.value)}
-                    style={{ backgroundColor: '#090D16', color: '#F4F7FC', colorScheme: 'dark' }}
+                    style={{ backgroundColor: "#090D16", color: "#F4F7FC", colorScheme: "dark" }}
                     className="rounded-lg border border-white/10 bg-[#090D16] px-2.5 py-1 text-xs text-[#F4F7FC]"
-                  > setPostCategory(e.target.value)}
-                    className="rounded-lg border border-white/10 bg-midnight-900 px-2.5 py-1 text-xs text-ink"
                   >
                     <option value="ALL">General Discussion</option>
                     <option value="LIVE">🔴 Live Match</option>
@@ -322,22 +323,33 @@ export default function Community() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3 pt-2">
-              <input
-                type="text"
-                value={pollMatchTag}
-                onChange={(e) => setPollMatchTag(e.target.value)}
-                placeholder="Linked Match (optional)"
-                className="input !py-1.5 !px-3 text-xs w-full sm:w-64"
-                disabled={!user || creatingPoll}
-              />
+              <div className="w-full sm:w-80">
+                <MatchAutocomplete
+                  selectedMatch={selectedPollMatch}
+                  onSelectMatch={(m) => {
+                    setSelectedPollMatch(m);
+                    if (m) {
+                      setPollMatchTag(m.id);
+                      setPollStatus(
+                        m.status === "LIVE"
+                          ? "LIVE"
+                          : m.status === "UPCOMING"
+                          ? "UPCOMING"
+                          : "COMPLETED"
+                      );
+                    } else {
+                      setPollMatchTag("");
+                      setPollStatus("ALL");
+                    }
+                  }}
+                  disabled={!user || creatingPoll}
+                />
+              </div>
               <select
                 value={pollStatus}
                 onChange={(e) => setPollStatus(e.target.value)}
-                style={{ backgroundColor: '#090D16', color: '#F4F7FC', colorScheme: 'dark' }}
+                style={{ backgroundColor: "#090D16", color: "#F4F7FC", colorScheme: "dark" }}
                 className="rounded-lg border border-white/10 bg-[#090D16] px-2.5 py-1 text-xs text-[#F4F7FC]"
-                disabled={!user || creatingPoll}
-              > setPollStatus(e.target.value)}
-                className="rounded-lg border border-white/10 bg-midnight-900 px-2.5 py-1 text-xs text-ink"
                 disabled={!user || creatingPoll}
               >
                 <option value="ALL">All Categories</option>
