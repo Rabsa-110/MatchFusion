@@ -63,3 +63,4 @@ content = content.replace(plainInputCode, autocompleteCode);
 
 fs.writeFileSync(cPath, content, 'utf8');
 console.log('Successfully updated Community.jsx with MatchAutocomplete!');
+
