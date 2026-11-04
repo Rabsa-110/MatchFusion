@@ -145,7 +145,7 @@ export async function fetchUpcomingFootball(daysAhead = 3) {
   // Free plan: only seasons 2022-2024 are accessible for historical/upcoming endpoints.
   // For current-season upcoming fixtures, the /fixtures?live=all and /fixtures?date= endpoints
   // work without season restriction. We use season 2024 as the base.
-  const season = (function() { if (process.env.API_FOOTBALL_SEASON) return parseInt(process.env.API_FOOTBALL_SEASON, 10); const n = new Date(); return n.getMonth() >= 6 ? n.getFullYear() : n.getFullYear() - 1; })();
+  const season = process.env.API_FOOTBALL_SEASON ? parseInt(process.env.API_FOOTBALL_SEASON, 10) : 2024; // Free plan max season
 
   const results = [];
   for (const leagueId of TARGET_LEAGUES.slice(0, 3)) {
@@ -174,7 +174,7 @@ export async function fetchRecentFootball(daysBack = 3) {
   const from = new Date(Date.now() - daysBack * 86400000).toISOString().slice(0, 10);
   // Free plan only allows 2022-2024. Season 2024 covers results through mid-2025
   // depending on competition. Use 2024 as base for historical results.
-  const season = (function() { if (process.env.API_FOOTBALL_SEASON) return parseInt(process.env.API_FOOTBALL_SEASON, 10); const n = new Date(); return n.getMonth() >= 6 ? n.getFullYear() : n.getFullYear() - 1; })();
+  const season = process.env.API_FOOTBALL_SEASON ? parseInt(process.env.API_FOOTBALL_SEASON, 10) : 2024; // Free plan max season
 
   const results = [];
   for (const leagueId of TARGET_LEAGUES.slice(0, 3)) {

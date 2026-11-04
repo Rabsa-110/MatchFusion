@@ -52,11 +52,16 @@ export default function Players() {
           setNote(data.note || null);
         } else {
           setError(data.message || "Failed to load players");
+          setPlayers([]);
+          setTotal(0);
         }
       })
       .catch((err) => {
         if (err.name !== "CanceledError" && err.name !== "AbortError") {
-          setError(err.response?.data?.message || "Could not reach MatchFusion backend");
+          const msg = err.response?.data?.message || "Could not reach MatchFusion backend. Make sure the backend server is running.";
+          setError(msg);
+          setPlayers([]);
+          setTotal(0);
         }
       })
       .finally(() => {
@@ -77,7 +82,7 @@ export default function Players() {
     try {
       const { data } = await api.post("/players/sync");
       if (data.success) {
-        setSyncMessage("Squad sync started! Refresh in a few seconds to see player data.");
+        setSyncMessage("Squad sync started! Refreshing player data...");
         // Auto-refresh after 5s
         setTimeout(() => fetchPlayers(sport, query, 1), 5000);
       } else {
@@ -141,7 +146,23 @@ export default function Players() {
         {!loading && error && (
           <div className="glass border-alert/20 p-6">
             <p className="text-sm font-medium text-alert">⚠ Error loading players</p>
-            <p className="mt-1 text-xs text-ink-muted">{error}</p>
+            <p className="mt-1 text-sm text-ink-muted">{error}</p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                onClick={() => fetchPlayers(sport, debouncedQuery, page)}
+                className="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-ink-muted hover:bg-white/[0.08]"
+              >
+                ↺ Retry
+              </button>
+              <a
+                href="https://supabase.com/dashboard"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg border border-broadcast/20 bg-broadcast/5 px-4 py-2 text-xs text-broadcast hover:bg-broadcast/10"
+              >
+                Check Supabase Status ↗
+              </a>
+            </div>
           </div>
         )}
 
@@ -154,17 +175,25 @@ export default function Players() {
               <p className="mt-2 text-sm text-ink-muted">
                 {query
                   ? "No players match your search. Try a different name or clear the filter."
-                  : "Player directory is populated from real match events and squad syncs."}
+                  : "Player directory is empty. Run 'npm run seed:players --prefix backend' in terminal, or use Sync Squads to populate."}
               </p>
             )}
             {!query && (
-              <button
-                onClick={handleSync}
-                disabled={syncing}
-                className="mt-4 btn-primary text-sm"
-              >
-                {syncing ? "Syncing…" : "Sync Squad Data from API"}
-              </button>
+              <div className="mt-4 flex flex-wrap justify-center gap-3">
+                <button
+                  onClick={handleSync}
+                  disabled={syncing}
+                  className="btn-primary text-sm"
+                >
+                  {syncing ? "Syncing…" : "Sync Squad Data from API"}
+                </button>
+                <button
+                  onClick={() => fetchPlayers(sport, debouncedQuery, 1)}
+                  className="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-ink-muted hover:bg-white/[0.08]"
+                >
+                  ↺ Refresh
+                </button>
+              </div>
             )}
           </div>
         )}

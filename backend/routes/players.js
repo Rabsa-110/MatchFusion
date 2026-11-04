@@ -100,7 +100,19 @@ router.get("/", async (req, res) => {
       }
     } catch (dbErr) {
       console.error("[players] Prisma query failed:", dbErr.message);
-      // Don't swallow — return an error so the UI can show it
+      // Check if DB is unreachable (Supabase paused or no network)
+      const isNetworkErr = dbErr.message.includes("Can't reach") ||
+        dbErr.message.includes("ECONNREFUSED") ||
+        dbErr.message.includes("connect ETIMEDOUT") ||
+        dbErr.message.includes("P1001");
+      if (isNetworkErr) {
+        return res.status(503).json({
+          success: false,
+          message: "Database is temporarily unreachable. If you recently started the server, please wait 30 seconds and try again. If the issue persists, check that your Supabase project is active at https://supabase.com/dashboard",
+          players: [],
+          total: 0,
+        });
+      }
       return res.status(500).json({
         success: false,
         message: "Database query failed: " + dbErr.message,
