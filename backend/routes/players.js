@@ -54,7 +54,9 @@ router.get("/", async (req, res) => {
         }),
       ]);
 
-      if (prismaTotal > 0) {
+      console.log(`[players] DB query: total=${prismaTotal}, returned=${prismaPlayers.length}, sport=${sport}, query="${query}"`);
+
+      if (prismaTotal >= 0) {
         const formatted = prismaPlayers.map((p) => {
           let stats = {};
           try { stats = p.statsJson ? JSON.parse(p.statsJson) : {}; } catch {}
@@ -89,10 +91,22 @@ router.get("/", async (req, res) => {
           totalPages: Math.ceil(prismaTotal / limitNum) || 1,
           players: formatted,
           source: "database",
+          note: prismaTotal === 0 && query
+            ? "No players found matching your search. Try a different name or clear the filter."
+            : prismaTotal === 0
+            ? "Player directory is empty. Use 'Sync Squads' to populate it."
+            : null,
         });
       }
     } catch (dbErr) {
-      console.warn("[players] Prisma query failed, falling back to event-derived:", dbErr.message);
+      console.error("[players] Prisma query failed:", dbErr.message);
+      // Don't swallow — return an error so the UI can show it
+      return res.status(500).json({
+        success: false,
+        message: "Database query failed: " + dbErr.message,
+        players: [],
+        total: 0,
+      });
     }
 
     // ── Fallback: event-derived players from match cache ─────────────────────
