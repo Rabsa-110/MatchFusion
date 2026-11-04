@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import SportSwitcher from "../components/common/SportSwitcher.jsx";
 import SearchBar from "../components/common/SearchBar.jsx";
 import PlayerCard from "../components/players/PlayerCard.jsx";
@@ -19,14 +19,30 @@ export default function Players() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const LIMIT = 50;
+  const [debouncedQuery, setDebouncedQuery] = useState(query);
+  const activeRequestRef = useRef(null);
+
+  // Debounce search query to prevent lag and race conditions
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [query]);
 
   const fetchPlayers = useCallback((sportVal, searchVal, pageVal) => {
+    if (activeRequestRef.current) {
+      activeRequestRef.current.abort();
+    }
+    const controller = new AbortController();
+    activeRequestRef.current = controller;
+
     setLoading(true);
     setError(null);
     const params = { sport: sportVal, page: pageVal, limit: LIMIT };
     if (searchVal.trim()) params.q = searchVal.trim();
 
-    api.get("/players", { params })
+    api.get("/players", { params, signal: controller.signal })
       .then(({ data }) => {
         if (data.success) {
           setPlayers(data.players || []);
@@ -39,15 +55,21 @@ export default function Players() {
         }
       })
       .catch((err) => {
-        setError(err.response?.data?.message || "Could not reach MatchFusion backend");
+        if (err.name !== "CanceledError" && err.name !== "AbortError") {
+          setError(err.response?.data?.message || "Could not reach MatchFusion backend");
+        }
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (activeRequestRef.current === controller) {
+          setLoading(false);
+        }
+      });
   }, []);
 
   useEffect(() => {
     setPage(1);
-    fetchPlayers(sport, query, 1);
-  }, [sport, query, fetchPlayers]);
+    fetchPlayers(sport, debouncedQuery, 1);
+  }, [sport, debouncedQuery, fetchPlayers]);
 
   const handleSync = async () => {
     setSyncing(true);
@@ -159,7 +181,7 @@ export default function Players() {
             {totalPages > 1 && (
               <div className="mt-8 flex items-center justify-center gap-3">
                 <button
-                  onClick={() => { const p = Math.max(1, page - 1); setPage(p); fetchPlayers(sport, query, p); }}
+                  onClick={() => { const p = Math.max(1, page - 1); setPage(p); fetchPlayers(sport, debouncedQuery, p); }}
                   disabled={page <= 1}
                   className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2 text-sm text-ink-muted hover:bg-white/[0.07] disabled:opacity-40"
                 >
@@ -167,7 +189,7 @@ export default function Players() {
                 </button>
                 <span className="text-sm text-ink-muted">Page {page} of {totalPages}</span>
                 <button
-                  onClick={() => { const p = Math.min(totalPages, page + 1); setPage(p); fetchPlayers(sport, query, p); }}
+                  onClick={() => { const p = Math.min(totalPages, page + 1); setPage(p); fetchPlayers(sport, debouncedQuery, p); }}
                   disabled={page >= totalPages}
                   className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2 text-sm text-ink-muted hover:bg-white/[0.07] disabled:opacity-40"
                 >

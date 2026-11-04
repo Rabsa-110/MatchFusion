@@ -6,6 +6,7 @@ import { Router } from "express";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import * as sportsService from "../services/sportsService.js";
 import { calculateProbabilities } from "../services/probabilityService.js";
+export { calculateProbabilities };
 import prisma from "../lib/prisma.js";
 
 const router = Router();

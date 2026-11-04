@@ -155,7 +155,7 @@ test("AI calculateProbabilities produces normalized probabilities without fabric
   assert.ok(liveProbs.home > liveProbs.away, "Leading home team has higher probability");
   assert.equal(liveProbs.home + (liveProbs.draw || 0) + liveProbs.away, 100);
 
-  // Test upcoming match: neutral baseline applied
+  // Test upcoming match: dynamic rating-based model
   const upcomingMatch = {
     sport: "cricket",
     status: "UPCOMING",
@@ -165,10 +165,20 @@ test("AI calculateProbabilities produces normalized probabilities without fabric
     away: { name: "Pakistan" },
   };
   const upcomingProbs = calculateProbabilities(upcomingMatch);
-  assert.equal(upcomingProbs.home, 50);
-  assert.equal(upcomingProbs.away, 50);
+  assert.equal(upcomingProbs.home + upcomingProbs.away, 100, "Probabilities sum to 100%");
   assert.equal(upcomingProbs.draw, null, "Cricket does not have draw probability");
-  assert.equal(upcomingProbs.method, "neutral_baseline");
+  assert.ok(upcomingProbs.home > upcomingProbs.away, "India at home favored over Pakistan");
+  assert.ok(upcomingProbs.method.includes("cricket"), "Uses cricket-specific probability model");
+
+  // Verify non-repetitive: Nepal vs Australia has distinct probability
+  const mismatchMatch = {
+    sport: "cricket",
+    status: "UPCOMING",
+    home: { name: "Nepal" },
+    away: { name: "Australia" },
+  };
+  const mismatchProbs = calculateProbabilities(mismatchMatch);
+  assert.notEqual(mismatchProbs.home, upcomingProbs.home, "Different matchups yield dynamic, distinct probabilities");
 });
 
 // ── 6. Gemini Response Parsing ──────────────────────────────────────────────

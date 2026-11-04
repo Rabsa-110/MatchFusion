@@ -116,25 +116,25 @@ export function calculateProbabilities(match) {
 
       if (detail.includes(homeName) || detail.includes("home won") || detail.includes("won by")) {
         if (detail.includes(awayName)) {
-          return { home: 0, draw: null, away: 100, factors, method: "official_result", confidence: "high" };
+          return { home: 0, draw: null, away: 100, factors, method: "result", confidence: "high" };
         }
-        return { home: 100, draw: null, away: 0, factors, method: "official_result", confidence: "high" };
+        return { home: 100, draw: null, away: 0, factors, method: "result", confidence: "high" };
       }
       const hRuns = parseRuns(match.scoreHome);
       const aRuns = parseRuns(match.scoreAway);
       if (hRuns !== null && aRuns !== null) {
-        if (hRuns > aRuns) return { home: 100, draw: null, away: 0, factors, method: "official_score", confidence: "high" };
-        if (aRuns > hRuns) return { home: 0, draw: null, away: 100, factors, method: "official_score", confidence: "high" };
-        return { home: 50, draw: null, away: 50, factors: [...factors, "Match tied"], method: "official_score", confidence: "high" };
+        if (hRuns > aRuns) return { home: 100, draw: null, away: 0, factors, method: "result", confidence: "high" };
+        if (aRuns > hRuns) return { home: 0, draw: null, away: 100, factors, method: "result", confidence: "high" };
+        return { home: 50, draw: null, away: 50, factors: [...factors, "Match tied"], method: "result", confidence: "high" };
       }
-      return { home: 50, draw: null, away: 50, factors, method: "official_result", confidence: "medium" };
+      return { home: 50, draw: null, away: 50, factors, method: "result", confidence: "medium" };
     } else {
       const h = parseInt(match.scoreHome, 10);
       const a = parseInt(match.scoreAway, 10);
       if (!isNaN(h) && !isNaN(a)) {
-        if (h > a) return { home: 100, draw: 0, away: 0, factors, method: "official_result", confidence: "high" };
-        if (a > h) return { home: 0, draw: 0, away: 100, factors, method: "official_result", confidence: "high" };
-        return { home: 0, draw: 100, away: 0, factors: [...factors, "Match concluded in a draw"], method: "official_result", confidence: "high" };
+        if (h > a) return { home: 100, draw: 0, away: 0, factors, method: "result", confidence: "high" };
+        if (a > h) return { home: 0, draw: 0, away: 100, factors, method: "result", confidence: "high" };
+        return { home: 0, draw: 100, away: 0, factors: [...factors, "Match concluded in a draw"], method: "result", confidence: "high" };
       }
     }
   }

@@ -55,3 +55,19 @@ test("Match search finds fixtures with expanded RMA and BARCA aliases", () => {
   assert.equal(matchMatchesSearch(elClasico, "Los Blancos"), true);
 });
 
+test("Player alias expansion resolves CR7 and Ronaldo to Cristiano Ronaldo", () => {
+  const cr7Terms = getExpandedSearchTerms("CR7");
+  assert.ok(cr7Terms.includes("cristiano ronaldo"), "CR7 must expand to cristiano ronaldo");
+
+  const ronaldoTerms = getExpandedSearchTerms("ronaldo");
+  assert.ok(ronaldoTerms.includes("cristiano ronaldo"), "ronaldo must expand to cristiano ronaldo");
+  assert.ok(ronaldoTerms.includes("cr7"), "ronaldo must include cr7");
+});
+
+test("Player alias expansion resolves Shakib Al Ha and Fizz to complete player identities", () => {
+  const shakibTerms = getExpandedSearchTerms("shakib al ha");
+  assert.ok(shakibTerms.includes("shakib al hasan"), "shakib al ha must expand to shakib al hasan");
+
+  const fizzTerms = getExpandedSearchTerms("fizz");
+  assert.ok(fizzTerms.includes("mustafizur rahman"), "fizz must expand to mustafizur rahman");
+});
